@@ -47,3 +47,16 @@
 *   **透明な背景:** `http://127.0.0.1:5000/Transparent_Background?mode=RGBA&color=transparent`
 *   **画像背景:** `http://127.0.0.1:5000/With_Image_Background?backgroundimage=https://example.com/your_image.jpg`
     *(`https://example.com/your_image.jpg` を実際の画像のURLに置き換えてください。)*
+
+
+
+## テストの実行
+
+テストコードを実行するには以下のコマンドを使用してください：
+
+```bash
+uv run pytest
+```
+
+これにより、画像生成APIの各種機能（フォーマット指定など）がテストされます。
+

@@ -103,11 +103,21 @@ def images(text):
         draw = ImageDraw.Draw(image)
         draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor='mm', align=align, spacing=spacing)
 
+        format_param = request.args.get('format', 'png').lower()
+        if format_param == 'png':
+            save_format = 'PNG'
+            mimetype = 'image/png'
+        elif format_param in ['jpg', 'jpeg']:
+            save_format = 'JPEG'
+            mimetype = 'image/jpeg'
+        else:
+            return "Unsupported format", 400
+
         image_io = BytesIO()
-        image.save(image_io, 'PNG', quality=70)
+        image.save(image_io, save_format, quality=70)
         image_io.seek(0)
 
-        return send_file(image_io, mimetype='image/png')
+        return send_file(image_io, mimetype=mimetype)
     except ValueError as e:
         return f"エラーが発生しました: {e}", 400
     except Exception as e:
