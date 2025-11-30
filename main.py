@@ -47,6 +47,7 @@ def hello():
             <li><code>spacing</code> (整数, デフォルト: 4): テキストの行間のスペース。</li>
             <li><code>font_size</code> (整数, デフォルト: 120): テキストのフォントサイズ。</li>
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
+                   <li><code>format</code> (文字列, デフォルト: png): 画像形式 (png, jpg, jpeg, gif, webp)。</li>
         </ul>
 
         <h2>例</h2>
@@ -71,6 +72,27 @@ def images(text):
         mode = request.args.get('mode', 'RGB')
         color_spec = request.args.get('color', 'black')
         background_image_url = request.args.get('backgroundimage')
+        img_format = request.args.get('format', 'png').lower()
+
+        supported_formats = {
+            'png': 'PNG',
+            'jpg': 'JPEG',
+            'jpeg': 'JPEG',
+            'gif': 'GIF',
+            'webp': 'WEBP'
+        }
+        if img_format not in supported_formats:
+            return "Unsupported image format. Supported: png, jpg, jpeg, gif, webp", 400
+        save_format = supported_formats[img_format]
+        mime_types = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        mimetype = mime_types[img_format]
+
 
         # Create base image
         if background_image_url:
@@ -104,10 +126,10 @@ def images(text):
         draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor='mm', align=align, spacing=spacing)
 
         image_io = BytesIO()
-        image.save(image_io, 'PNG', quality=70)
+        image.save(image_io, save_format, quality=70)
         image_io.seek(0)
 
-        return send_file(image_io, mimetype='image/png')
+        return send_file(image_io, mimetype=mimetype)
     except ValueError as e:
         return f"エラーが発生しました: {e}", 400
     except Exception as e:
@@ -115,4 +137,4 @@ def images(text):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=52969, debug=True)
