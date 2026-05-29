@@ -35,3 +35,31 @@ def test_images_jpeg(client):
 def test_invalid_format(client):
     rv = client.get('/test?format=gif')
     assert rv.status_code == 400
+
+def test_width_zero(client):
+    rv = client.get('/test?width=0')
+    assert rv.status_code == 400
+
+def test_width_negative(client):
+    rv = client.get('/test?width=-1')
+    assert rv.status_code == 400
+
+def test_width_too_large(client):
+    rv = client.get('/test?width=99999')
+    assert rv.status_code == 400
+
+def test_height_zero(client):
+    rv = client.get('/test?height=0')
+    assert rv.status_code == 400
+
+def test_height_negative(client):
+    rv = client.get('/test?height=-1')
+    assert rv.status_code == 400
+
+def test_height_too_large(client):
+    rv = client.get('/test?height=99999')
+    assert rv.status_code == 400
+
+def test_max_size_boundary(client):
+    rv = client.get('/test?width=4096&height=4096')
+    assert rv.status_code == 200
