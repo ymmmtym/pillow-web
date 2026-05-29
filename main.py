@@ -36,6 +36,7 @@ def _validate_background_image_url(url):
         raise ValueError("URLにホスト名が含まれていません")
     if _is_private_ip(parsed.hostname):
         raise ValueError("プライベートネットワークへのリクエストは許可されていません")
+
 @app.route('/')
 def hello():
     base_url = request.host_url
