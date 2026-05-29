@@ -1,46 +1,15 @@
-import ipaddress
-import socket
-from io import BytesIO
-from urllib.parse import urlparse
+from __future__ import annotations
 
-import requests
-from flask import Flask, request, send_file
-from PIL import Image, ImageDraw, ImageFont
-
-MAX_IMAGE_SIZE = 4096
+from flask import Flask, Response, send_file, request
+from pillow_web.validation import validate_background_image_url
+from pillow_web.image import generate_image, save_image, MAX_IMAGE_SIZE
+from typing import Tuple, Union
 
 app = Flask(__name__)
 
 
-def _is_private_ip(host):
-    try:
-        ip = ipaddress.ip_address(host)
-        return ip.is_private or ip.is_loopback or ip.is_link_local
-    except ValueError:
-        pass
-    try:
-        ips = socket.getaddrinfo(host, None)
-        for addr in ips:
-            ip = ipaddress.ip_address(addr[4][0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local:
-                return True
-    except (socket.gaierror, ValueError):
-        pass
-    return False
-
-
-def _validate_background_image_url(url):
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError("httpもしくはhttpsのURLのみ許可されています")
-    if not parsed.hostname:
-        raise ValueError("URLにホスト名が含まれていません")
-    if _is_private_ip(parsed.hostname):
-        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
-
-
 @app.route("/")
-def hello():
+def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
     <!DOCTYPE html>
@@ -84,16 +53,11 @@ def hello():
 
         <h2>例</h2>
         <ul>
-            <li><a href="{base_url}Custom_Size?width=800&height=300">
-              <code>{base_url}Custom_Size?width=800&height=300</code></a></li>
-            <li><a href="{base_url}Colorful_Text?color=blue&fill=yellow">
-              <code>{base_url}Colorful_Text?color=blue&fill=yellow</code></a></li>
-            <li><a href="{base_url}Large_Font?font_size=150">
-              <code>{base_url}Large_Font?font_size=150</code></a></li>
-            <li><a href="{base_url}Transparent_Background?mode=RGBA&color=transparent">
-              <code>{base_url}Transparent_Background?mode=RGBA&color=transparent</code></a></li>
-            <li><a href="{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg">
-              <code>{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg</code></a></li>
+            <li><a href="{base_url}Custom_Size?width=800&height=300"><code>{base_url}Custom_Size?width=800&height=300</code></a></li>
+            <li><a href="{base_url}Colorful_Text?color=blue&fill=yellow"><code>{base_url}Colorful_Text?color=blue&fill=yellow</code></a></li>
+            <li><a href="{base_url}Large_Font?font_size=150"><code>{base_url}Large_Font?font_size=150</code></a></li>
+            <li><a href="{base_url}Transparent_Background?mode=RGBA&color=transparent"><code>{base_url}Transparent_Background?mode=RGBA&color=transparent</code></a></li>
+            <li><a href="{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg"><code>{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg</code></a></li>
         </ul>
     </body>
     </html>
@@ -102,9 +66,8 @@ def hello():
 
 
 @app.route("/<text>")
-def images(text):
+def images(text: str) -> Union[Response, Tuple[str, int]]:
     try:
-        # Image options
         width = int(request.args.get("width", 600))
         height = int(request.args.get("height", 200))
         if width <= 0:
@@ -115,65 +78,39 @@ def images(text):
             return "height must be greater than 0", 400
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
+
         mode = request.args.get("mode", "RGB")
         color_spec = request.args.get("color", "black")
-        background_image_url = request.args.get("backgroundimage")
-
-        # Create base image
-        if background_image_url:
-            try:
-                _validate_background_image_url(background_image_url)
-                response = requests.get(background_image_url, stream=True, timeout=10)
-                response.raise_for_status()
-                image = Image.open(response.raw).convert(mode)
-                image = image.resize((width, height))
-            except ValueError as e:
-                return str(e), 400
-            except (OSError, requests.exceptions.RequestException) as e:
-                return f"背景画像の読み込みに失敗しました: {e}", 400
-        else:
-            if mode == "RGBA" and color_spec == "transparent":
-                color = (0, 0, 0, 0)
-            else:
-                color = color_spec
-            image = Image.new(mode, (width, height), color)
-
-        # Text options
         fill = request.args.get("fill", "white")
         align = request.args.get("align", "center")
         spacing = int(request.args.get("spacing", 4))
         font_size = int(request.args.get("font_size", 120))
+        background_image_url = request.args.get("backgroundimage")
 
-        # Font
-        try:
-            font = ImageFont.truetype("arial.ttf", font_size)
-        except OSError:
-            font = ImageFont.load_default()
+        if background_image_url:
+            try:
+                validate_background_image_url(background_image_url)
+            except ValueError as e:
+                return str(e), 400
 
-        draw = ImageDraw.Draw(image)
-        draw.text(
-            (width / 2, height / 2),
+        image = generate_image(
             text,
+            width,
+            height,
+            mode=mode,
+            color=color_spec,
             fill=fill,
-            font=font,
-            anchor="mm",
             align=align,
             spacing=spacing,
+            font_size=font_size,
+            background_image_url=background_image_url,
         )
 
         format_param = request.args.get("format", "png").lower()
-        if format_param == "png":
-            save_format = "PNG"
-            mimetype = "image/png"
-        elif format_param in ["jpg", "jpeg"]:
-            save_format = "JPEG"
-            mimetype = "image/jpeg"
-        else:
+        if format_param not in ("png", "jpg", "jpeg"):
             return "Unsupported format", 400
 
-        image_io = BytesIO()
-        image.save(image_io, save_format, quality=70)
-        image_io.seek(0)
+        image_io, mimetype = save_image(image, format=format_param)
 
         return send_file(image_io, mimetype=mimetype)
     except ValueError as e:
