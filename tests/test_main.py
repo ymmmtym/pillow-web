@@ -164,14 +164,14 @@ def test_backgroundimage_success(client):
     mock_response.raw = buf
     mock_response.raise_for_status.return_value = None
 
-    with patch("main.requests.get", return_value=mock_response):
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 200
         assert rv.headers["Content-Type"] == "image/png"
 
 
 def test_backgroundimage_fetch_failure(client):
-    with patch("main.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
