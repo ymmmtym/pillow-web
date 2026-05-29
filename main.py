@@ -68,6 +68,11 @@ def images(text):
         # Image options
         width = int(request.args.get('width', 600))
         height = int(request.args.get('height', 200))
+
+        # Validate image dimensions
+        max_dimension = 2000
+        if width > max_dimension or height > max_dimension:
+            return f"画像サイズが大きすぎます。最大{max_dimension}x{max_dimension}まで対応しています。", 400
         mode = request.args.get('mode', 'RGB')
         color_spec = request.args.get('color', 'black')
         background_image_url = request.args.get('backgroundimage')
