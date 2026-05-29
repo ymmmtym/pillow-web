@@ -1,13 +1,17 @@
-from flask import Flask, send_file, request
-from PIL import Image, ImageDraw, ImageFont
+from __future__ import annotations
+
 from io import BytesIO
+from typing import Tuple, Union
+
 import requests
+from flask import Flask, Response, send_file, request
+from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__)
 
 
 @app.route('/')
-def hello():
+def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
     <!DOCTYPE html>
@@ -63,7 +67,7 @@ def hello():
     return usage_html
 
 @app.route('/<text>')
-def images(text):
+def images(text: str) -> Union[str, Response, Tuple[str, int]]:
     try:
         # Image options
         width = int(request.args.get('width', 600))
