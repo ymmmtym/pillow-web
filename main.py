@@ -1,17 +1,21 @@
-from flask import Flask, send_file, request
+from __future__ import annotations
+
+from flask import Flask, Response, send_file, request
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+from typing import Optional, Tuple, Union
 from urllib.parse import urlparse
 import ipaddress
 import socket
+
 import requests
 
-MAX_IMAGE_SIZE = 4096
+MAX_IMAGE_SIZE: int = 4096
 
 app = Flask(__name__)
 
 
-def _is_private_ip(host):
+def _is_private_ip(host: str) -> bool:
     try:
         ip = ipaddress.ip_address(host)
         return ip.is_private or ip.is_loopback or ip.is_link_local
@@ -28,7 +32,7 @@ def _is_private_ip(host):
     return False
 
 
-def _validate_background_image_url(url):
+def _validate_background_image_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in ('http', 'https'):
         raise ValueError("httpもしくはhttpsのURLのみ許可されています")
@@ -38,7 +42,7 @@ def _validate_background_image_url(url):
         raise ValueError("プライベートネットワークへのリクエストは許可されていません")
 
 @app.route('/')
-def hello():
+def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
     <!DOCTYPE html>
@@ -94,11 +98,11 @@ def hello():
     return usage_html
 
 @app.route('/<text>')
-def images(text):
+def images(text: str) -> Union[Response, Tuple[str, int]]:
     try:
         # Image options
-        width = int(request.args.get('width', 600))
-        height = int(request.args.get('height', 200))
+        width: int = int(request.args.get('width', 600))
+        height: int = int(request.args.get('height', 200))
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -107,9 +111,9 @@ def images(text):
             return "height must be greater than 0", 400
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
-        mode = request.args.get('mode', 'RGB')
-        color_spec = request.args.get('color', 'black')
-        background_image_url = request.args.get('backgroundimage')
+        mode: str = request.args.get('mode', 'RGB')
+        color_spec: str = request.args.get('color', 'black')
+        background_image_url: Optional[str] = request.args.get('backgroundimage')
 
         # Create base image
         if background_image_url:
@@ -131,10 +135,10 @@ def images(text):
             image = Image.new(mode, (width, height), color)
 
         # Text options
-        fill = request.args.get('fill', 'white')
-        align = request.args.get('align', 'center')
-        spacing = int(request.args.get('spacing', 4))
-        font_size = int(request.args.get('font_size', 120))
+        fill: str = request.args.get('fill', 'white')
+        align: str = request.args.get('align', 'center')
+        spacing: int = int(request.args.get('spacing', 4))
+        font_size: int = int(request.args.get('font_size', 120))
 
         # Font
         try:
@@ -145,7 +149,7 @@ def images(text):
         draw = ImageDraw.Draw(image)
         draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor='mm', align=align, spacing=spacing)
 
-        format_param = request.args.get('format', 'png').lower()
+        format_param: str = request.args.get('format', 'png').lower()
         if format_param == 'png':
             save_format = 'PNG'
             mimetype = 'image/png'
