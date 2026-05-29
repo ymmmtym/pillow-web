@@ -79,7 +79,7 @@ def images(text: str) -> Union[str, Response, Tuple[str, int]]:
         # Create base image
         if background_image_url:
             try:
-                response = requests.get(background_image_url, stream=True)
+                response = requests.get(background_image_url, stream=True, timeout=10)
                 response.raise_for_status()
                 image = Image.open(response.raw).convert(mode)
                 image = image.resize((width, height))
