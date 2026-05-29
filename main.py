@@ -1,12 +1,14 @@
-from flask import Flask, send_file, request
+from __future__ import annotations
+
+from flask import Flask, Response, send_file, request
 from pillow_web.validation import validate_background_image_url
 from pillow_web.image import generate_image, save_image, MAX_IMAGE_SIZE
+from typing import Tuple, Union
 
 app = Flask(__name__)
 
-
 @app.route('/')
-def hello():
+def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
     <!DOCTYPE html>
@@ -63,7 +65,7 @@ def hello():
 
 
 @app.route('/<text>')
-def images(text):
+def images(text: str) -> Union[Response, Tuple[str, int]]:
     try:
         width = int(request.args.get('width', 600))
         height = int(request.args.get('height', 200))
