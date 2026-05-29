@@ -7,7 +7,8 @@ from typing import Tuple, Union
 
 app = Flask(__name__)
 
-@app.route('/')
+
+@app.route("/")
 def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
@@ -64,11 +65,11 @@ def hello() -> str:
     return usage_html
 
 
-@app.route('/<text>')
+@app.route("/<text>")
 def images(text: str) -> Union[Response, Tuple[str, int]]:
     try:
-        width = int(request.args.get('width', 600))
-        height = int(request.args.get('height', 200))
+        width = int(request.args.get("width", 600))
+        height = int(request.args.get("height", 200))
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -78,13 +79,13 @@ def images(text: str) -> Union[Response, Tuple[str, int]]:
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
 
-        mode = request.args.get('mode', 'RGB')
-        color_spec = request.args.get('color', 'black')
-        fill = request.args.get('fill', 'white')
-        align = request.args.get('align', 'center')
-        spacing = int(request.args.get('spacing', 4))
-        font_size = int(request.args.get('font_size', 120))
-        background_image_url = request.args.get('backgroundimage')
+        mode = request.args.get("mode", "RGB")
+        color_spec = request.args.get("color", "black")
+        fill = request.args.get("fill", "white")
+        align = request.args.get("align", "center")
+        spacing = int(request.args.get("spacing", 4))
+        font_size = int(request.args.get("font_size", 120))
+        background_image_url = request.args.get("backgroundimage")
 
         if background_image_url:
             try:
@@ -93,15 +94,20 @@ def images(text: str) -> Union[Response, Tuple[str, int]]:
                 return str(e), 400
 
         image = generate_image(
-            text, width, height,
-            mode=mode, color=color_spec,
-            fill=fill, align=align,
-            spacing=spacing, font_size=font_size,
+            text,
+            width,
+            height,
+            mode=mode,
+            color=color_spec,
+            fill=fill,
+            align=align,
+            spacing=spacing,
+            font_size=font_size,
             background_image_url=background_image_url,
         )
 
-        format_param = request.args.get('format', 'png').lower()
-        if format_param not in ('png', 'jpg', 'jpeg'):
+        format_param = request.args.get("format", "png").lower()
+        if format_param not in ("png", "jpg", "jpeg"):
             return "Unsupported format", 400
 
         image_io, mimetype = save_image(image, format=format_param)

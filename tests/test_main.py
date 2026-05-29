@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import app, MAX_IMAGE_SIZE  # noqa: E402
 from pillow_web.validation import validate_background_image_url
 
+
 @pytest.fixture
 def client() -> Generator[FlaskClient, None, None]:
     app.testing = True
@@ -21,35 +22,36 @@ def client() -> Generator[FlaskClient, None, None]:
 
 
 def test_images_png_default(client: FlaskClient) -> None:
-    rv = client.get('/test')
+    rv = client.get("/test")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/png'
+    assert rv.headers["Content-Type"] == "image/png"
 
 
 def test_images_png_explicit(client: FlaskClient) -> None:
-    rv = client.get('/test?format=png')
+    rv = client.get("/test?format=png")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/png'
+    assert rv.headers["Content-Type"] == "image/png"
 
 
 def test_images_jpg(client: FlaskClient) -> None:
-    rv = client.get('/test?format=jpg')
+    rv = client.get("/test?format=jpg")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/jpeg'
+    assert rv.headers["Content-Type"] == "image/jpeg"
 
 
 def test_images_jpeg(client: FlaskClient) -> None:
-    rv = client.get('/test?format=jpeg')
+    rv = client.get("/test?format=jpeg")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/jpeg'
+    assert rv.headers["Content-Type"] == "image/jpeg"
 
 
 def test_invalid_format(client: FlaskClient) -> None:
-    rv = client.get('/test?format=gif')
+    rv = client.get("/test?format=gif")
     assert rv.status_code == 400
 
 
 # SSRF validation tests
+
 
 def test_validate_url_private_ipv4_loopback() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
@@ -100,108 +102,108 @@ def test_validate_url_public_domain_allowed():
 
 
 def test_backgroundimage_private_ip_blocked(client: FlaskClient) -> None:
-    rv = client.get('/test?backgroundimage=http://127.0.0.1:5000/image.jpg')
+    rv = client.get("/test?backgroundimage=http://127.0.0.1:5000/image.jpg")
     assert rv.status_code == 400
     assert "プライベートネットワーク" in rv.data.decode()
 
 
 def test_backgroundimage_invalid_scheme_blocked(client: FlaskClient) -> None:
-    rv = client.get('/test?backgroundimage=file:///etc/passwd')
+    rv = client.get("/test?backgroundimage=file:///etc/passwd")
     assert rv.status_code == 400
     assert "httpもしくはhttps" in rv.data.decode()
 
 
 def test_width_zero(client: FlaskClient) -> None:
-    rv = client.get('/test?width=0')
+    rv = client.get("/test?width=0")
     assert rv.status_code == 400
 
 
 def test_width_negative(client: FlaskClient) -> None:
-    rv = client.get('/test?width=-1')
+    rv = client.get("/test?width=-1")
     assert rv.status_code == 400
 
 
 def test_width_too_large(client: FlaskClient) -> None:
-    rv = client.get('/test?width=99999')
+    rv = client.get("/test?width=99999")
     assert rv.status_code == 400
 
 
 def test_height_zero(client: FlaskClient) -> None:
-    rv = client.get('/test?height=0')
+    rv = client.get("/test?height=0")
     assert rv.status_code == 400
 
 
 def test_height_negative(client: FlaskClient) -> None:
-    rv = client.get('/test?height=-1')
+    rv = client.get("/test?height=-1")
     assert rv.status_code == 400
 
 
 def test_height_too_large(client: FlaskClient) -> None:
-    rv = client.get('/test?height=99999')
+    rv = client.get("/test?height=99999")
     assert rv.status_code == 400
 
 
 def test_max_size_boundary(client: FlaskClient) -> None:
-    rv = client.get('/test?width=4096&height=4096')
+    rv = client.get("/test?width=4096&height=4096")
     assert rv.status_code == 200
 
 
 def test_transparent_background(client):
-    rv = client.get('/test?mode=RGBA&color=transparent')
+    rv = client.get("/test?mode=RGBA&color=transparent")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/png'
+    assert rv.headers["Content-Type"] == "image/png"
 
 
 def test_backgroundimage_success(client):
-    img = Image.new('RGB', (100, 100), (255, 0, 0))
+    img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
-    img.save(buf, 'PNG')
+    img.save(buf, "PNG")
     buf.seek(0)
 
     mock_response = MagicMock()
     mock_response.raw = buf
     mock_response.raise_for_status.return_value = None
 
-    with patch('main.requests.get', return_value=mock_response):
-        rv = client.get('/test?backgroundimage=http://example.com/img.png')
+    with patch("main.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 200
-        assert rv.headers['Content-Type'] == 'image/png'
+        assert rv.headers["Content-Type"] == "image/png"
 
 
 def test_backgroundimage_fetch_failure(client):
-    with patch('main.requests.get', side_effect=requests.exceptions.ConnectionError("Connection error")):
-        rv = client.get('/test?backgroundimage=http://example.com/img.png')
+    with patch("main.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
 
 
 def test_invalid_width_non_numeric(client):
-    rv = client.get('/test?width=abc')
+    rv = client.get("/test?width=abc")
     assert rv.status_code == 400
 
 
 def test_invalid_height_non_numeric(client):
-    rv = client.get('/test?height=abc')
+    rv = client.get("/test?height=abc")
     assert rv.status_code == 400
 
 
 def test_invalid_spacing_non_numeric(client):
-    rv = client.get('/test?spacing=abc')
+    rv = client.get("/test?spacing=abc")
     assert rv.status_code == 400
 
 
 def test_invalid_font_size_non_numeric(client):
-    rv = client.get('/test?font_size=abc')
+    rv = client.get("/test?font_size=abc")
     assert rv.status_code == 400
 
 
 def test_width_exceeds_max_with_message(client):
-    rv = client.get(f'/test?width={MAX_IMAGE_SIZE + 1}')
+    rv = client.get(f"/test?width={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
 
 
 def test_height_exceeds_max_with_message(client):
-    rv = client.get(f'/test?height={MAX_IMAGE_SIZE + 1}')
+    rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
