@@ -1,10 +1,14 @@
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 import sys
 
 import pytest
+import requests
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, _validate_background_image_url, _is_private_ip
+from main import app, _validate_background_image_url, _is_private_ip, MAX_IMAGE_SIZE
 
 @pytest.fixture
 def client():
@@ -126,3 +130,64 @@ def test_height_too_large(client):
 def test_max_size_boundary(client):
     rv = client.get('/test?width=4096&height=4096')
     assert rv.status_code == 200
+
+
+def test_transparent_background(client):
+    rv = client.get('/test?mode=RGBA&color=transparent')
+    assert rv.status_code == 200
+    assert rv.headers['Content-Type'] == 'image/png'
+
+
+def test_backgroundimage_success(client):
+    img = Image.new('RGB', (100, 100), (255, 0, 0))
+    buf = BytesIO()
+    img.save(buf, 'PNG')
+    buf.seek(0)
+
+    mock_response = MagicMock()
+    mock_response.raw = buf
+    mock_response.raise_for_status.return_value = None
+
+    with patch('main.requests.get', return_value=mock_response):
+        rv = client.get('/test?backgroundimage=http://example.com/img.png')
+        assert rv.status_code == 200
+        assert rv.headers['Content-Type'] == 'image/png'
+
+
+def test_backgroundimage_fetch_failure(client):
+    with patch('main.requests.get', side_effect=requests.exceptions.ConnectionError("Connection error")):
+        rv = client.get('/test?backgroundimage=http://example.com/img.png')
+        assert rv.status_code == 400
+        assert "背景画像の読み込みに失敗" in rv.data.decode()
+
+
+def test_invalid_width_non_numeric(client):
+    rv = client.get('/test?width=abc')
+    assert rv.status_code == 400
+
+
+def test_invalid_height_non_numeric(client):
+    rv = client.get('/test?height=abc')
+    assert rv.status_code == 400
+
+
+def test_invalid_spacing_non_numeric(client):
+    rv = client.get('/test?spacing=abc')
+    assert rv.status_code == 400
+
+
+def test_invalid_font_size_non_numeric(client):
+    rv = client.get('/test?font_size=abc')
+    assert rv.status_code == 400
+
+
+def test_width_exceeds_max_with_message(client):
+    rv = client.get(f'/test?width={MAX_IMAGE_SIZE + 1}')
+    assert rv.status_code == 400
+    assert "must not exceed" in rv.data.decode()
+
+
+def test_height_exceeds_max_with_message(client):
+    rv = client.get(f'/test?height={MAX_IMAGE_SIZE + 1}')
+    assert rv.status_code == 400
+    assert "must not exceed" in rv.data.decode()
