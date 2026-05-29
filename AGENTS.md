@@ -17,6 +17,9 @@ This is a small Flask API that generates PNG images with Pillow.
 - `uv run main.py`: start the development server, usually at `http://127.0.0.1:5000`.
 - `uv run python -m pytest`: run the test suite when tests are present.
 - `uv build`: build source and wheel distributions through Hatchling.
+- `ruff check`: run the linter against the codebase.
+- `ruff check --fix`: run the linter and auto-fix fixable issues.
+- `ruff format`: format the codebase according to project style.
 
 When manually checking behavior, call endpoints such as:
 
@@ -28,7 +31,7 @@ curl -I "http://127.0.0.1:5000/Hello?width=300&height=120"
 
 Use standard Python style with 4-space indentation, clear function names, and small route handlers. Keep request parameter names stable because they are part of the public API, for example `width`, `height`, `font_size`, and `backgroundimage`.
 
-Prefer explicit error handling around user input, network access, and Pillow image operations. Keep comments short and focused on non-obvious behavior. No formatter or linter is currently configured; if adding one, document it in `pyproject.toml` and this guide.
+Prefer explicit error handling around user input, network access, and Pillow image operations. Keep comments short and focused on non-obvious behavior. Ruff is configured in `pyproject.toml` for both linting and formatting; run `ruff check` and `ruff format` before committing.
 
 ## Testing Guidelines
 
