@@ -1,2 +1,3 @@
-def hello():
-    return "Hello from pillow-web!"
+from .image_generator import generate_image
+
+__all__ = ["generate_image"]

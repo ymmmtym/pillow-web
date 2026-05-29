@@ -1,7 +1,4 @@
-
 import pytest
-import sys
-sys.path.insert(0, '/workspace')
 from main import app
 
 @pytest.fixture

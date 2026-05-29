@@ -1,7 +1,5 @@
-from flask import Flask, send_file, request
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-import requests
+from flask import Flask, request, send_file
+from pillow_web import generate_image
 
 app = Flask(__name__)
 
@@ -62,61 +60,34 @@ def hello():
     """
     return usage_html
 
+
 @app.route('/<text>')
 def images(text):
     try:
-        # Image options
         width = int(request.args.get('width', 600))
         height = int(request.args.get('height', 200))
         mode = request.args.get('mode', 'RGB')
-        color_spec = request.args.get('color', 'black')
+        color = request.args.get('color', 'black')
         background_image_url = request.args.get('backgroundimage')
-
-        # Create base image
-        if background_image_url:
-            try:
-                response = requests.get(background_image_url, stream=True)
-                response.raise_for_status()
-                image = Image.open(response.raw).convert(mode)
-                image = image.resize((width, height))
-            except (requests.exceptions.RequestException, IOError) as e:
-                return f"背景画像の読み込みに失敗しました: {e}", 400
-        else:
-            if mode == 'RGBA' and color_spec == 'transparent':
-                color = (0, 0, 0, 0)
-            else:
-                color = color_spec
-            image = Image.new(mode, (width, height), color)
-
-        # Text options
         fill = request.args.get('fill', 'white')
         align = request.args.get('align', 'center')
         spacing = int(request.args.get('spacing', 4))
         font_size = int(request.args.get('font_size', 120))
+        format_param = request.args.get('format', 'png')
 
-        # Font
-        try:
-            font = ImageFont.truetype("arial.ttf", font_size)
-        except IOError:
-            font = ImageFont.load_default()
-
-        draw = ImageDraw.Draw(image)
-        draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor='mm', align=align, spacing=spacing)
-
-        format_param = request.args.get('format', 'png').lower()
-        if format_param == 'png':
-            save_format = 'PNG'
-            mimetype = 'image/png'
-        elif format_param in ['jpg', 'jpeg']:
-            save_format = 'JPEG'
-            mimetype = 'image/jpeg'
-        else:
-            return "Unsupported format", 400
-
-        image_io = BytesIO()
-        image.save(image_io, save_format, quality=70)
-        image_io.seek(0)
-
+        image_io, mimetype = generate_image(
+            text=text,
+            width=width,
+            height=height,
+            mode=mode,
+            color=color,
+            background_image_url=background_image_url,
+            fill=fill,
+            align=align,
+            spacing=spacing,
+            font_size=font_size,
+            format_param=format_param,
+        )
         return send_file(image_io, mimetype=mimetype)
     except ValueError as e:
         return f"エラーが発生しました: {e}", 400
