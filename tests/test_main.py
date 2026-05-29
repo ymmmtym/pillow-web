@@ -10,7 +10,8 @@ from flask.testing import FlaskClient
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, _validate_background_image_url, _is_private_ip, MAX_IMAGE_SIZE  # noqa: E402
+from main import app, MAX_IMAGE_SIZE  # noqa: E402
+from pillow_web.validation import validate_background_image_url
 
 @pytest.fixture
 def client() -> Generator[FlaskClient, None, None]:
@@ -52,50 +53,50 @@ def test_invalid_format(client: FlaskClient) -> None:
 
 def test_validate_url_private_ipv4_loopback() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
-        _validate_background_image_url("http://127.0.0.1:5000/image.jpg")
+        validate_background_image_url("http://127.0.0.1:5000/image.jpg")
 
 
 def test_validate_url_private_ipv4_10() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
-        _validate_background_image_url("http://10.0.0.1/image.jpg")
+        validate_background_image_url("http://10.0.0.1/image.jpg")
 
 
 def test_validate_url_private_ipv4_172() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
-        _validate_background_image_url("http://172.16.0.1/image.jpg")
+        validate_background_image_url("http://172.16.0.1/image.jpg")
 
 
 def test_validate_url_private_ipv4_192() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
-        _validate_background_image_url("http://192.168.1.1/image.jpg")
+        validate_background_image_url("http://192.168.1.1/image.jpg")
 
 
 def test_validate_url_private_ipv6_loopback() -> None:
     with pytest.raises(ValueError, match="プライベートネットワーク"):
-        _validate_background_image_url("http://[::1]:5000/image.jpg")
+        validate_background_image_url("http://[::1]:5000/image.jpg")
 
 
 def test_validate_url_invalid_scheme_file() -> None:
     with pytest.raises(ValueError, match="httpもしくはhttps"):
-        _validate_background_image_url("file:///etc/passwd")
+        validate_background_image_url("file:///etc/passwd")
 
 
 def test_validate_url_invalid_scheme_ftp() -> None:
     with pytest.raises(ValueError, match="httpもしくはhttps"):
-        _validate_background_image_url("ftp://example.com/image.jpg")
+        validate_background_image_url("ftp://example.com/image.jpg")
 
 
 def test_validate_url_no_hostname() -> None:
     with pytest.raises(ValueError, match="ホスト名"):
-        _validate_background_image_url("http:///image.jpg")
+        validate_background_image_url("http:///image.jpg")
 
 
-def test_validate_url_public_ip_allowed() -> None:
-    _validate_background_image_url("http://8.8.8.8/image.jpg")
+def test_validate_url_public_ip_allowed():
+    validate_background_image_url("http://8.8.8.8/image.jpg")
 
 
-def test_validate_url_public_domain_allowed() -> None:
-    _validate_background_image_url("https://example.com/image.jpg")
+def test_validate_url_public_domain_allowed():
+    validate_background_image_url("https://example.com/image.jpg")
 
 
 def test_backgroundimage_private_ip_blocked(client: FlaskClient) -> None:
