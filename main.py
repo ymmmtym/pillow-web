@@ -1,12 +1,41 @@
 from flask import Flask, send_file, request
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+from urllib.parse import urlparse
+import ipaddress
+import socket
 import requests
 
 MAX_IMAGE_SIZE = 4096
 
 app = Flask(__name__)
 
+
+def _is_private_ip(host):
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except ValueError:
+        pass
+    try:
+        ips = socket.getaddrinfo(host, None)
+        for addr in ips:
+            ip = ipaddress.ip_address(addr[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                return True
+    except (socket.gaierror, ValueError):
+        pass
+    return False
+
+
+def _validate_background_image_url(url):
+    parsed = urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError("httpもしくはhttpsのURLのみ許可されています")
+    if not parsed.hostname:
+        raise ValueError("URLにホスト名が含まれていません")
+    if _is_private_ip(parsed.hostname):
+        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
 
 @app.route('/')
 def hello():
@@ -70,7 +99,6 @@ def images(text):
         # Image options
         width = int(request.args.get('width', 600))
         height = int(request.args.get('height', 200))
-
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -86,10 +114,13 @@ def images(text):
         # Create base image
         if background_image_url:
             try:
+                _validate_background_image_url(background_image_url)
                 response = requests.get(background_image_url, stream=True, timeout=10)
                 response.raise_for_status()
                 image = Image.open(response.raw).convert(mode)
                 image = image.resize((width, height))
+            except ValueError as e:
+                return str(e), 400
             except (requests.exceptions.RequestException, IOError) as e:
                 return f"背景画像の読み込みに失敗しました: {e}", 400
         else:
