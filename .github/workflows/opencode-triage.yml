@@ -40,7 +40,9 @@ jobs:
           model: opencode/big-pickle
           prompt: |
             Review this issue. If there's a clear fix:
+            - Before creating the PR, run `uv run ruff check` and `uv run python -m pytest` and fix any failures
             - Create a branch and open a PR with the fix
             - Enable auto-merge on the PR (squash merge)
             - Include "Closes #<issue_number>" in the PR description
+            - Do NOT modify any file under .github/ or pyproject.toml
             Otherwise, do not comment.
