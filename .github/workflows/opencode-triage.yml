@@ -39,7 +39,8 @@ jobs:
         with:
           model: opencode/big-pickle
           prompt: |
-            Review this issue. If there's a clear fix or relevant docs:
-            - Provide documentation links
-            - Add error handling guidance for code examples
+            Review this issue. If there's a clear fix:
+            - Create a branch and open a PR with the fix
+            - Enable auto-merge on the PR (squash merge)
+            - Include "Closes #<issue_number>" in the PR description
             Otherwise, do not comment.
