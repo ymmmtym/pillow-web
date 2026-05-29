@@ -6,6 +6,8 @@ import ipaddress
 import socket
 import requests
 
+MAX_IMAGE_SIZE = 4096
+
 app = Flask(__name__)
 
 
@@ -34,8 +36,6 @@ def _validate_background_image_url(url):
         raise ValueError("URLにホスト名が含まれていません")
     if _is_private_ip(parsed.hostname):
         raise ValueError("プライベートネットワークへのリクエストは許可されていません")
-
-
 @app.route('/')
 def hello():
     base_url = request.host_url
@@ -98,6 +98,14 @@ def images(text):
         # Image options
         width = int(request.args.get('width', 600))
         height = int(request.args.get('height', 200))
+        if width <= 0:
+            return "width must be greater than 0", 400
+        if width > MAX_IMAGE_SIZE:
+            return f"width must not exceed {MAX_IMAGE_SIZE}", 400
+        if height <= 0:
+            return "height must be greater than 0", 400
+        if height > MAX_IMAGE_SIZE:
+            return f"height must not exceed {MAX_IMAGE_SIZE}", 400
         mode = request.args.get('mode', 'RGB')
         color_spec = request.args.get('color', 'black')
         background_image_url = request.args.get('backgroundimage')

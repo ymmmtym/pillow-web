@@ -1,8 +1,9 @@
-import os
+from pathlib import Path
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import app, _validate_background_image_url, _is_private_ip
 
 @pytest.fixture
@@ -34,6 +35,7 @@ def test_images_jpeg(client):
 def test_invalid_format(client):
     rv = client.get('/test?format=gif')
     assert rv.status_code == 400
+
 
 
 # SSRF validation tests
@@ -96,3 +98,31 @@ def test_backgroundimage_invalid_scheme_blocked(client):
     rv = client.get('/test?backgroundimage=file:///etc/passwd')
     assert rv.status_code == 400
     assert "httpもしくはhttps" in rv.data.decode()
+
+def test_width_zero(client):
+    rv = client.get('/test?width=0')
+    assert rv.status_code == 400
+
+def test_width_negative(client):
+    rv = client.get('/test?width=-1')
+    assert rv.status_code == 400
+
+def test_width_too_large(client):
+    rv = client.get('/test?width=99999')
+    assert rv.status_code == 400
+
+def test_height_zero(client):
+    rv = client.get('/test?height=0')
+    assert rv.status_code == 400
+
+def test_height_negative(client):
+    rv = client.get('/test?height=-1')
+    assert rv.status_code == 400
+
+def test_height_too_large(client):
+    rv = client.get('/test?height=99999')
+    assert rv.status_code == 400
+
+def test_max_size_boundary(client):
+    rv = client.get('/test?width=4096&height=4096')
+    assert rv.status_code == 200
