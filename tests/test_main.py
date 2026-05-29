@@ -1,7 +1,9 @@
 
-import pytest
+from pathlib import Path
 import sys
-sys.path.insert(0, '/workspace')
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import app
 
 @pytest.fixture
