@@ -1,10 +1,11 @@
-from flask import Flask, send_file, request
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-from urllib.parse import urlparse
 import ipaddress
 import socket
+from io import BytesIO
+from urllib.parse import urlparse
+
 import requests
+from flask import Flask, request, send_file
+from PIL import Image, ImageDraw, ImageFont
 
 MAX_IMAGE_SIZE = 4096
 
@@ -30,14 +31,15 @@ def _is_private_ip(host):
 
 def _validate_background_image_url(url):
     parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https'):
+    if parsed.scheme not in ("http", "https"):
         raise ValueError("httpもしくはhttpsのURLのみ許可されています")
     if not parsed.hostname:
         raise ValueError("URLにホスト名が含まれていません")
     if _is_private_ip(parsed.hostname):
         raise ValueError("プライベートネットワークへのリクエストは許可されていません")
 
-@app.route('/')
+
+@app.route("/")
 def hello():
     base_url = request.host_url
     usage_html = f"""
@@ -82,23 +84,29 @@ def hello():
 
         <h2>例</h2>
         <ul>
-            <li><a href="{base_url}Custom_Size?width=800&height=300"><code>{base_url}Custom_Size?width=800&height=300</code></a></li>
-            <li><a href="{base_url}Colorful_Text?color=blue&fill=yellow"><code>{base_url}Colorful_Text?color=blue&fill=yellow</code></a></li>
-            <li><a href="{base_url}Large_Font?font_size=150"><code>{base_url}Large_Font?font_size=150</code></a></li>
-            <li><a href="{base_url}Transparent_Background?mode=RGBA&color=transparent"><code>{base_url}Transparent_Background?mode=RGBA&color=transparent</code></a></li>
-            <li><a href="{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg"><code>{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg</code></a></li>
+            <li><a href="{base_url}Custom_Size?width=800&height=300">
+              <code>{base_url}Custom_Size?width=800&height=300</code></a></li>
+            <li><a href="{base_url}Colorful_Text?color=blue&fill=yellow">
+              <code>{base_url}Colorful_Text?color=blue&fill=yellow</code></a></li>
+            <li><a href="{base_url}Large_Font?font_size=150">
+              <code>{base_url}Large_Font?font_size=150</code></a></li>
+            <li><a href="{base_url}Transparent_Background?mode=RGBA&color=transparent">
+              <code>{base_url}Transparent_Background?mode=RGBA&color=transparent</code></a></li>
+            <li><a href="{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg">
+              <code>{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg</code></a></li>
         </ul>
     </body>
     </html>
     """
     return usage_html
 
-@app.route('/<text>')
+
+@app.route("/<text>")
 def images(text):
     try:
         # Image options
-        width = int(request.args.get('width', 600))
-        height = int(request.args.get('height', 200))
+        width = int(request.args.get("width", 600))
+        height = int(request.args.get("height", 200))
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -107,9 +115,9 @@ def images(text):
             return "height must be greater than 0", 400
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
-        mode = request.args.get('mode', 'RGB')
-        color_spec = request.args.get('color', 'black')
-        background_image_url = request.args.get('backgroundimage')
+        mode = request.args.get("mode", "RGB")
+        color_spec = request.args.get("color", "black")
+        background_image_url = request.args.get("backgroundimage")
 
         # Create base image
         if background_image_url:
@@ -121,37 +129,45 @@ def images(text):
                 image = image.resize((width, height))
             except ValueError as e:
                 return str(e), 400
-            except (requests.exceptions.RequestException, IOError) as e:
+            except (OSError, requests.exceptions.RequestException) as e:
                 return f"背景画像の読み込みに失敗しました: {e}", 400
         else:
-            if mode == 'RGBA' and color_spec == 'transparent':
+            if mode == "RGBA" and color_spec == "transparent":
                 color = (0, 0, 0, 0)
             else:
                 color = color_spec
             image = Image.new(mode, (width, height), color)
 
         # Text options
-        fill = request.args.get('fill', 'white')
-        align = request.args.get('align', 'center')
-        spacing = int(request.args.get('spacing', 4))
-        font_size = int(request.args.get('font_size', 120))
+        fill = request.args.get("fill", "white")
+        align = request.args.get("align", "center")
+        spacing = int(request.args.get("spacing", 4))
+        font_size = int(request.args.get("font_size", 120))
 
         # Font
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
-        except IOError:
+        except OSError:
             font = ImageFont.load_default()
 
         draw = ImageDraw.Draw(image)
-        draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor='mm', align=align, spacing=spacing)
+        draw.text(
+            (width / 2, height / 2),
+            text,
+            fill=fill,
+            font=font,
+            anchor="mm",
+            align=align,
+            spacing=spacing,
+        )
 
-        format_param = request.args.get('format', 'png').lower()
-        if format_param == 'png':
-            save_format = 'PNG'
-            mimetype = 'image/png'
-        elif format_param in ['jpg', 'jpeg']:
-            save_format = 'JPEG'
-            mimetype = 'image/jpeg'
+        format_param = request.args.get("format", "png").lower()
+        if format_param == "png":
+            save_format = "PNG"
+            mimetype = "image/png"
+        elif format_param in ["jpg", "jpeg"]:
+            save_format = "JPEG"
+            mimetype = "image/jpeg"
         else:
             return "Unsupported format", 400
 

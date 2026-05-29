@@ -1,10 +1,11 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, _validate_background_image_url, _is_private_ip
+from main import _validate_background_image_url, app
+
 
 @pytest.fixture
 def client():
@@ -12,33 +13,38 @@ def client():
     with app.test_client() as client:
         yield client
 
+
 def test_images_png_default(client):
-    rv = client.get('/test')
+    rv = client.get("/test")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/png'
+    assert rv.headers["Content-Type"] == "image/png"
+
 
 def test_images_png_explicit(client):
-    rv = client.get('/test?format=png')
+    rv = client.get("/test?format=png")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/png'
+    assert rv.headers["Content-Type"] == "image/png"
+
 
 def test_images_jpg(client):
-    rv = client.get('/test?format=jpg')
+    rv = client.get("/test?format=jpg")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/jpeg'
+    assert rv.headers["Content-Type"] == "image/jpeg"
+
 
 def test_images_jpeg(client):
-    rv = client.get('/test?format=jpeg')
+    rv = client.get("/test?format=jpeg")
     assert rv.status_code == 200
-    assert rv.headers['Content-Type'] == 'image/jpeg'
+    assert rv.headers["Content-Type"] == "image/jpeg"
+
 
 def test_invalid_format(client):
-    rv = client.get('/test?format=gif')
+    rv = client.get("/test?format=gif")
     assert rv.status_code == 400
 
 
-
 # SSRF validation tests
+
 
 def test_validate_url_private_ipv4_loopback():
     with pytest.raises(ValueError, match="プライベートネットワーク"):
@@ -89,40 +95,47 @@ def test_validate_url_public_domain_allowed():
 
 
 def test_backgroundimage_private_ip_blocked(client):
-    rv = client.get('/test?backgroundimage=http://127.0.0.1:5000/image.jpg')
+    rv = client.get("/test?backgroundimage=http://127.0.0.1:5000/image.jpg")
     assert rv.status_code == 400
     assert "プライベートネットワーク" in rv.data.decode()
 
 
 def test_backgroundimage_invalid_scheme_blocked(client):
-    rv = client.get('/test?backgroundimage=file:///etc/passwd')
+    rv = client.get("/test?backgroundimage=file:///etc/passwd")
     assert rv.status_code == 400
     assert "httpもしくはhttps" in rv.data.decode()
 
+
 def test_width_zero(client):
-    rv = client.get('/test?width=0')
+    rv = client.get("/test?width=0")
     assert rv.status_code == 400
+
 
 def test_width_negative(client):
-    rv = client.get('/test?width=-1')
+    rv = client.get("/test?width=-1")
     assert rv.status_code == 400
+
 
 def test_width_too_large(client):
-    rv = client.get('/test?width=99999')
+    rv = client.get("/test?width=99999")
     assert rv.status_code == 400
+
 
 def test_height_zero(client):
-    rv = client.get('/test?height=0')
+    rv = client.get("/test?height=0")
     assert rv.status_code == 400
+
 
 def test_height_negative(client):
-    rv = client.get('/test?height=-1')
+    rv = client.get("/test?height=-1")
     assert rv.status_code == 400
+
 
 def test_height_too_large(client):
-    rv = client.get('/test?height=99999')
+    rv = client.get("/test?height=99999")
     assert rv.status_code == 400
 
+
 def test_max_size_boundary(client):
-    rv = client.get('/test?width=4096&height=4096')
+    rv = client.get("/test?width=4096&height=4096")
     assert rv.status_code == 200

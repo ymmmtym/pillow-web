@@ -28,7 +28,7 @@ curl -I "http://127.0.0.1:5000/Hello?width=300&height=120"
 
 Use standard Python style with 4-space indentation, clear function names, and small route handlers. Keep request parameter names stable because they are part of the public API, for example `width`, `height`, `font_size`, and `backgroundimage`.
 
-Prefer explicit error handling around user input, network access, and Pillow image operations. Keep comments short and focused on non-obvious behavior. No formatter or linter is currently configured; if adding one, document it in `pyproject.toml` and this guide.
+Prefer explicit error handling around user input, network access, and Pillow image operations. Keep comments short and focused on non-obvious behavior. Ruff is configured in `pyproject.toml` for both formatting and linting; run `uv run ruff format` and `uv run ruff check` before committing.
 
 ## Testing Guidelines
 
