@@ -273,3 +273,98 @@ def test_font_path_validation_rejects_path_traversal():
     # Invalid extensions
     assert _validate_font_path("/usr/share/fonts/font.txt") is False
     assert _validate_font_path("") is False
+
+
+
+# Edge case: large font_size
+def test_large_font_size(client: FlaskClient) -> None:
+    rv = client.get("/test?font_size=500")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_huge_font_size(client: FlaskClient) -> None:
+    rv = client.get("/test?font_size=99999")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Edge case: special characters
+def test_emoji_text(client: FlaskClient) -> None:
+    rv = client.get("/%F0%9F%98%80")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_control_characters(client: FlaskClient) -> None:
+    rv = client.get("/test%00%01%02")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_unicode_text(client: FlaskClient) -> None:
+    rv = client.get("/%E3%83%86%E3%82%B9%E3%83%88")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Edge case: extreme aspect ratios
+def test_extreme_aspect_ratio_wide(client: FlaskClient) -> None:
+    rv = client.get("/test?width=4096&height=1")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_extreme_aspect_ratio_tall(client: FlaskClient) -> None:
+    rv = client.get("/test?width=1&height=4096")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Integration tests: verify generated image content
+def test_image_has_correct_dimensions(client: FlaskClient) -> None:
+    rv = client.get("/test?width=300&height=150")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.size == (300, 150)
+
+
+def test_image_png_format_valid(client: FlaskClient) -> None:
+    rv = client.get("/test")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "PNG"
+
+
+def test_image_jpg_format_valid(client: FlaskClient) -> None:
+    rv = client.get("/test?format=jpg")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "JPEG"
+
+
+def test_image_rgba_transparent(client: FlaskClient) -> None:
+    rv = client.get("/test?mode=RGBA&color=transparent")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.mode == "RGBA"
+    # Top-left corner should be fully transparent
+    assert img.getpixel((0, 0))[3] == 0
+
+
+def test_text_alignment_left(client: FlaskClient) -> None:
+    rv = client.get("/test?align=left")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_text_alignment_right(client: FlaskClient) -> None:
+    rv = client.get("/test?align=right")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_custom_spacing(client: FlaskClient) -> None:
+    rv = client.get("/test?spacing=20")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
