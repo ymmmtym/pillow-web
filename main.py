@@ -1,19 +1,31 @@
 from __future__ import annotations
 
-from typing import Tuple, Union
-
 from flask import Flask, Response, request, send_file
 
 from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
+
+__all__ = [
+    "app",
+    "MAX_IMAGE_SIZE",
+]
+
+DEFAULT_WIDTH = 600
+DEFAULT_HEIGHT = 200
+DEFAULT_MODE = "RGB"
+DEFAULT_COLOR = "black"
+DEFAULT_FILL = "white"
+DEFAULT_ALIGN = "center"
+DEFAULT_SPACING = 4
+DEFAULT_FONT_SIZE = 120
 
 app = Flask(__name__)
 
 
 @app.route("/")
 def hello() -> str:
-    base_url = request.host_url
-    usage_html = f"""
+    base_url: str = request.host_url
+    usage_html: str = f"""
     <!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -68,10 +80,10 @@ def hello() -> str:
 
 
 @app.route("/<text>")
-def images(text: str) -> Union[Response, Tuple[str, int]]:
+def images(text: str) -> Response | tuple[str, int]:
     try:
-        width = int(request.args.get("width", 600))
-        height = int(request.args.get("height", 200))
+        width = int(request.args.get("width", DEFAULT_WIDTH))
+        height = int(request.args.get("height", DEFAULT_HEIGHT))
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -81,13 +93,13 @@ def images(text: str) -> Union[Response, Tuple[str, int]]:
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
 
-        mode = request.args.get("mode", "RGB")
-        color_spec = request.args.get("color", "black")
-        fill = request.args.get("fill", "white")
-        align = request.args.get("align", "center")
-        spacing = int(request.args.get("spacing", 4))
-        font_size = int(request.args.get("font_size", 120))
-        background_image_url = request.args.get("backgroundimage")
+        mode: str = request.args.get("mode", DEFAULT_MODE)
+        color_spec: str = request.args.get("color", DEFAULT_COLOR)
+        fill: str = request.args.get("fill", DEFAULT_FILL)
+        align: str = request.args.get("align", DEFAULT_ALIGN)
+        spacing = int(request.args.get("spacing", DEFAULT_SPACING))
+        font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
+        background_image_url: str | None = request.args.get("backgroundimage")
 
         if background_image_url:
             try:
@@ -108,7 +120,7 @@ def images(text: str) -> Union[Response, Tuple[str, int]]:
             background_image_url=background_image_url,
         )
 
-        format_param = request.args.get("format", "png").lower()
+        format_param: str = request.args.get("format", "png").lower()
         if format_param not in ("png", "jpg", "jpeg"):
             return "Unsupported format", 400
 

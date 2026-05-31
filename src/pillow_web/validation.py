@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import ipaddress
 import socket
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 
-def is_private_ip(host):
+def is_private_ip(host: str) -> bool:
     try:
         ip = ipaddress.ip_address(host)
         return ip.is_private or ip.is_loopback or ip.is_link_local
@@ -20,8 +22,8 @@ def is_private_ip(host):
     return False
 
 
-def validate_background_image_url(url):
-    parsed = urlparse(url)
+def validate_background_image_url(url: str) -> None:
+    parsed: ParseResult = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError("httpもしくはhttpsのURLのみ許可されています")
     if not parsed.hostname:

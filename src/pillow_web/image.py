@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import os
 import threading
 import time
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
-import requests
 
+import requests
+from PIL import Image, ImageDraw, ImageFont
 
 MAX_IMAGE_SIZE = 4096
+BACKGROUND_IMAGE_TIMEOUT = 10
+DEFAULT_QUALITY = 70
 CACHE_TTL = 3600
 CACHE_MAX_SIZE = 20
 
@@ -18,6 +22,9 @@ _FONT_CANDIDATES: list[str] = []
 _font_candidates_init = False
 _font_candidates_lock = threading.Lock()
 _FONTS_DIR = Path(__file__).resolve().parent.parent.parent / "fonts"
+
+
+ColorSpec = str | tuple[int, int, int, int]
 
 
 def _validate_font_path(path: str) -> bool:
@@ -77,7 +84,9 @@ def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def _get_cached_background_image(url, mode, width, height):
+def _get_cached_background_image(
+    url: str, mode: str, width: int, height: int
+) -> Image.Image | None:
     now = time.time()
     if url in _background_image_cache:
         timestamp, data = _background_image_cache[url]
@@ -91,7 +100,7 @@ def _get_cached_background_image(url, mode, width, height):
     return None
 
 
-def _set_cached_background_image(url, data):
+def _set_cached_background_image(url: str, data: bytes) -> None:
     if len(_background_image_cache) >= CACHE_MAX_SIZE:
         oldest_url = min(_background_image_cache, key=lambda k: _background_image_cache[k][0])
         del _background_image_cache[oldest_url]
@@ -99,29 +108,29 @@ def _set_cached_background_image(url, data):
     _background_image_cache[url] = (time.time(), data)
 
 
-def clear_cache():
+def clear_cache() -> None:
     _background_image_cache.clear()
 
 
 def generate_image(
-    text,
-    width,
-    height,
-    mode="RGB",
-    color="black",
-    fill="white",
-    align="center",
-    spacing=4,
-    font_size=120,
-    background_image_url=None,
-):
+    text: str,
+    width: int,
+    height: int,
+    mode: str = "RGB",
+    color: ColorSpec = "black",
+    fill: str = "white",
+    align: str = "center",
+    spacing: int = 4,
+    font_size: int = 120,
+    background_image_url: str | None = None,
+) -> Image.Image:
     if background_image_url:
         cached = _get_cached_background_image(background_image_url, mode, width, height)
         if cached is not None:
             image = cached
         else:
             try:
-                response = requests.get(background_image_url, timeout=10)
+                response = requests.get(background_image_url, timeout=BACKGROUND_IMAGE_TIMEOUT)
                 response.raise_for_status()
                 data = response.content
                 _set_cached_background_image(background_image_url, data)
@@ -137,12 +146,24 @@ def generate_image(
     font = _load_font(font_size)
 
     draw = ImageDraw.Draw(image)
-    draw.text((width / 2, height / 2), text, fill=fill, font=font, anchor="mm", align=align, spacing=spacing)
+    draw.text(
+        (width / 2, height / 2),
+        text,
+        fill=fill,
+        font=font,
+        anchor="mm",
+        align=align,
+        spacing=spacing,
+    )
 
     return image
 
 
-def save_image(image, format="png", quality=70):
+def save_image(
+    image: Image.Image,
+    format: str = "png",
+    quality: int = DEFAULT_QUALITY,
+) -> tuple[BytesIO, str]:
     if format in ("jpg", "jpeg"):
         save_format = "JPEG"
         mimetype = "image/jpeg"

@@ -94,11 +94,11 @@ def test_validate_url_no_hostname() -> None:
         validate_background_image_url("http:///image.jpg")
 
 
-def test_validate_url_public_ip_allowed():
+def test_validate_url_public_ip_allowed() -> None:
     validate_background_image_url("http://8.8.8.8/image.jpg")
 
 
-def test_validate_url_public_domain_allowed():
+def test_validate_url_public_domain_allowed() -> None:
     validate_background_image_url("https://example.com/image.jpg")
 
 
@@ -149,14 +149,20 @@ def test_max_size_boundary(client: FlaskClient) -> None:
     assert rv.status_code == 200
 
 
-def test_transparent_background(client):
+def test_transparent_background(client: FlaskClient) -> None:
     rv = client.get("/test?mode=RGBA&color=transparent")
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
 
 
+<<<<<<< HEAD
+def test_backgroundimage_success(client: FlaskClient) -> None:
+||||||| 7b0f5ce
+def test_backgroundimage_success(client):
+=======
 def test_backgroundimage_success(client):
     clear_cache()
+>>>>>>> origin/main
     img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
     img.save(buf, "PNG")
@@ -172,43 +178,53 @@ def test_backgroundimage_success(client):
         assert rv.headers["Content-Type"] == "image/png"
 
 
+<<<<<<< HEAD
+def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
+    with patch(
+        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
+    ):
+||||||| 7b0f5ce
+def test_backgroundimage_fetch_failure(client):
+    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+=======
 def test_backgroundimage_fetch_failure(client):
     clear_cache()
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
+>>>>>>> origin/main
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
 
 
-def test_invalid_width_non_numeric(client):
+def test_invalid_width_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?width=abc")
     assert rv.status_code == 400
 
 
-def test_invalid_height_non_numeric(client):
+def test_invalid_height_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?height=abc")
     assert rv.status_code == 400
 
 
-def test_invalid_spacing_non_numeric(client):
+def test_invalid_spacing_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?spacing=abc")
     assert rv.status_code == 400
 
 
-def test_invalid_font_size_non_numeric(client):
+def test_invalid_font_size_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?font_size=abc")
     assert rv.status_code == 400
 
 
-def test_width_exceeds_max_with_message(client):
+def test_width_exceeds_max_with_message(client: FlaskClient) -> None:
     rv = client.get(f"/test?width={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
 
 
-def test_height_exceeds_max_with_message(client):
+def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
     rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
