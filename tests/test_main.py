@@ -227,3 +227,16 @@ def test_japanese_text_fallback_handles_error(client):
     with patch("pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]):
         rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
         assert rv.status_code == 200
+
+
+
+def test_font_path_validation_rejects_path_traversal():
+    from pillow_web.image import _validate_font_path
+
+    assert _validate_font_path("/usr/share/fonts/font.ttf") is True
+    assert _validate_font_path("fonts/NotoSans.otf") is True
+    assert _validate_font_path("../../../etc/passwd") is False
+    assert _validate_font_path("/path/../../../etc/passwd") is False
+    assert _validate_font_path("~/fonts/font.ttf") is False
+    assert _validate_font_path("/usr/share/fonts/font.txt") is False
+    assert _validate_font_path("") is False

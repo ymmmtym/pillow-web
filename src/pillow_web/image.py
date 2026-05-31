@@ -9,12 +9,26 @@ MAX_IMAGE_SIZE = 4096
 _FONT_CANDIDATES: list[str] = []
 
 
+def _validate_font_path(path: str) -> bool:
+    """Validate font path to prevent path traversal attacks."""
+    if not path:
+        return False
+    # Reject paths with path traversal patterns
+    if ".." in path or path.startswith("~"):
+        return False
+    # Only allow common font extensions
+    allowed_extensions = (".ttf", ".otf", ".ttc", ".TTF", ".OTF", ".TTC")
+    if not path.endswith(allowed_extensions):
+        return False
+    return True
+
+
 def _init_font_candidates() -> None:
     if _FONT_CANDIDATES:
         return
 
     env_font = os.environ.get("PILLOW_WEB_FONT_PATH")
-    if env_font:
+    if env_font and _validate_font_path(env_font):
         _FONT_CANDIDATES.append(env_font)
 
     _FONT_CANDIDATES.extend(
