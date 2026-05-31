@@ -1,23 +1,41 @@
 from __future__ import annotations
 
+import os
+
 from flask import Flask, Response, request, send_file
 
 from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
 
+__all__ = [
+    "app",
+    "MAX_IMAGE_SIZE",
+]
+
+DEFAULT_WIDTH = 600
+DEFAULT_HEIGHT = 200
+DEFAULT_MODE = "RGB"
+DEFAULT_COLOR = "black"
+DEFAULT_FILL = "white"
+DEFAULT_ALIGN = "center"
+DEFAULT_SPACING = 4
+DEFAULT_FONT_SIZE = 120
+
 app = Flask(__name__)
+
+OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "openapi.yaml")
 
 
 @app.route("/")
 def hello() -> str:
-    base_url = request.host_url
-    usage_html = f"""
+    base_url: str = request.host_url
+    usage_html: str = f"""
     <!DOCTYPE html>
     <html lang="ja">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Pillew Web Image Generation API</title>
+        <title>Pillow Web Image Generation API</title>
         <style>
             body {{ font-family: sans-serif; margin: 2em; line-height: 1.6; }}
             code {{ background-color: #eee; padding: 2px 4px; border-radius: 3px; }}
@@ -27,12 +45,13 @@ def hello() -> str:
         </style>
     </head>
     <body>
-        <h1>Pillew Web Image Generation API</h1>
+        <h1>Pillow Web Image Generation API</h1>
         <p>このAPIは、指定されたテキストと様々なオプションで画像を生成します。</p>
 
         <h2>エンドポイント</h2>
         <p><code>GET /&lt;text&gt;</code></p>
         <p>例: <a href="{base_url}Hello_World"><code>{base_url}Hello_World</code></a></p>
+        <p><a href="{base_url}docs"><code>/docs</code></a> でAPIドキュメントを参照できます。</p>
 
         <h2>クエリパラメータ</h2>
         <ul>
@@ -49,6 +68,7 @@ def hello() -> str:
             <li><code>spacing</code> (整数, デフォルト: 4): テキストの行間のスペース。</li>
             <li><code>font_size</code> (整数, デフォルト: 120): テキストのフォントサイズ。</li>
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
+            <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg)。</li>
         </ul>
 
         <h2>例</h2>
@@ -65,11 +85,40 @@ def hello() -> str:
     return usage_html
 
 
+@app.route("/docs")
+def swagger_docs() -> str:
+    base_url = request.host_url
+    return f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Docs - Pillow Web</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+        SwaggerUIBundle({{
+            url: '{base_url}openapi.yaml',
+            dom_id: '#swagger-ui',
+        }});
+    </script>
+</body>
+</html>"""
+
+
+@app.route("/openapi.yaml")
+def openapi_spec():
+    return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
+
+
 @app.route("/<text>")
 def images(text: str) -> Response | tuple[str, int]:
     try:
-        width = int(request.args.get("width", 600))
-        height = int(request.args.get("height", 200))
+        width = int(request.args.get("width", DEFAULT_WIDTH))
+        height = int(request.args.get("height", DEFAULT_HEIGHT))
         if width <= 0:
             return "width must be greater than 0", 400
         if width > MAX_IMAGE_SIZE:
@@ -79,13 +128,13 @@ def images(text: str) -> Response | tuple[str, int]:
         if height > MAX_IMAGE_SIZE:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
 
-        mode = request.args.get("mode", "RGB")
-        color_spec = request.args.get("color", "black")
-        fill = request.args.get("fill", "white")
-        align = request.args.get("align", "center")
-        spacing = int(request.args.get("spacing", 4))
-        font_size = int(request.args.get("font_size", 120))
-        background_image_url = request.args.get("backgroundimage")
+        mode: str = request.args.get("mode", DEFAULT_MODE)
+        color_spec: str = request.args.get("color", DEFAULT_COLOR)
+        fill: str = request.args.get("fill", DEFAULT_FILL)
+        align: str = request.args.get("align", DEFAULT_ALIGN)
+        spacing = int(request.args.get("spacing", DEFAULT_SPACING))
+        font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
+        background_image_url: str | None = request.args.get("backgroundimage")
 
         if background_image_url:
             try:
@@ -106,7 +155,7 @@ def images(text: str) -> Response | tuple[str, int]:
             background_image_url=background_image_url,
         )
 
-        format_param = request.args.get("format", "png").lower()
+        format_param: str = request.args.get("format", "png").lower()
         if format_param not in ("png", "jpg", "jpeg"):
             return "Unsupported format", 400
 
