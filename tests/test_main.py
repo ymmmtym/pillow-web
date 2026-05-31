@@ -171,7 +171,9 @@ def test_backgroundimage_success(client):
 
 
 def test_backgroundimage_fetch_failure(client):
-    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+    with patch(
+        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
+    ):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
@@ -207,3 +209,21 @@ def test_height_exceeds_max_with_message(client):
     rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
+
+
+def test_japanese_text(client):
+    rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")  # /日本語
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_japanese_text_with_custom_size(client):
+    rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E?width=400&height=150&font_size=30")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_japanese_text_fallback_handles_error(client):
+    with patch("pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]):
+        rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
+        assert rv.status_code == 200
