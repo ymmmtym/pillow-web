@@ -1,5 +1,6 @@
 import os
 import threading
+from functools import lru_cache
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import requests
@@ -8,7 +9,6 @@ import requests
 MAX_IMAGE_SIZE = 4096
 
 _FONT_CANDIDATES: list[str] = []
-_FONT_CACHE: dict[int, ImageFont.FreeTypeFont | ImageFont.ImageFont] = {}
 _font_candidates_init = False
 _font_candidates_lock = threading.Lock()
 
@@ -58,23 +58,16 @@ def _init_font_candidates() -> None:
         _font_candidates_init = True
 
 
+@lru_cache(maxsize=64)
 def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load font with caching to avoid repeated filesystem probes."""
-    if font_size in _FONT_CACHE:
-        return _FONT_CACHE[font_size]
-
+    """Load font with LRU caching (max 64 sizes) to avoid repeated filesystem probes."""
     _init_font_candidates()
     for path in _FONT_CANDIDATES:
         try:
-            font = ImageFont.truetype(path, font_size)
-            _FONT_CACHE[font_size] = font
-            return font
+            return ImageFont.truetype(path, font_size)
         except (IOError, OSError):
             continue
-
-    font = ImageFont.load_default()
-    _FONT_CACHE[font_size] = font
-    return font
+    return ImageFont.load_default()
 
 
 def generate_image(

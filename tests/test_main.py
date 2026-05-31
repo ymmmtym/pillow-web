@@ -224,9 +224,12 @@ def test_japanese_text_with_custom_size(client):
 
 
 def test_japanese_text_fallback_handles_error(client):
+    from pillow_web.image import _load_font
+
     with patch("pillow_web.image._font_candidates_init", False), patch(
         "pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]
-    ), patch("pillow_web.image._FONT_CACHE", {}):
+    ):
+        _load_font.cache_clear()
         rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
         assert rv.status_code == 200
 
