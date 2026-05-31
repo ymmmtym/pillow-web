@@ -1,5 +1,7 @@
 # pillow-web
 
+[![Test](https://github.com/ymmmtym/pillow-web/actions/workflows/test.yml/badge.svg)](https://github.com/ymmmtym/pillow-web/actions/workflows/test.yml)
+
 このプロジェクトは、指定されたテキストと様々なオプションを使用して動的に画像を生成するシンプルなWeb APIです。
 
 ## 起動方法
@@ -59,3 +61,9 @@ uv run python -m pytest
 ```
 
 これにより、画像生成APIの各種機能（フォーマット指定など）がテストされます。
+
+カバレッジレポートを表示するには：
+
+```bash
+uv run python -m pytest --cov=pillow_web --cov-report=term
+```

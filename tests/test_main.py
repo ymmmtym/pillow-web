@@ -1,8 +1,8 @@
+import sys
 from io import BytesIO
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator
 from unittest.mock import MagicMock, patch
-import sys
 
 import pytest
 import requests
@@ -10,7 +10,7 @@ from flask.testing import FlaskClient
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, MAX_IMAGE_SIZE  # noqa: E402
+from main import MAX_IMAGE_SIZE, app  # noqa: E402
 from pillow_web.validation import validate_background_image_url
 
 
@@ -171,7 +171,9 @@ def test_backgroundimage_success(client):
 
 
 def test_backgroundimage_fetch_failure(client):
-    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+    with patch(
+        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
+    ):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
@@ -207,3 +209,97 @@ def test_height_exceeds_max_with_message(client):
     rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
+
+
+# Edge case: large font_size
+def test_large_font_size(client):
+    rv = client.get("/test?font_size=500")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_huge_font_size(client):
+    rv = client.get("/test?font_size=99999")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Edge case: special characters
+def test_emoji_text(client):
+    rv = client.get("/%F0%9F%98%80")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_control_characters(client):
+    rv = client.get("/test%00%01%02")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_unicode_text(client):
+    rv = client.get("/%E3%83%86%E3%82%B9%E3%83%88")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Edge case: extreme aspect ratios
+def test_extreme_aspect_ratio_wide(client):
+    rv = client.get("/test?width=4096&height=1")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_extreme_aspect_ratio_tall(client):
+    rv = client.get("/test?width=1&height=4096")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+# Integration tests: verify generated image content
+def test_image_has_correct_dimensions(client):
+    rv = client.get("/test?width=300&height=150")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.size == (300, 150)
+
+
+def test_image_png_format_valid(client):
+    rv = client.get("/test")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "PNG"
+
+
+def test_image_jpg_format_valid(client):
+    rv = client.get("/test?format=jpg")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "JPEG"
+
+
+def test_image_rgba_transparent(client):
+    rv = client.get("/test?mode=RGBA&color=transparent")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.mode == "RGBA"
+    # Top-left corner should be fully transparent
+    assert img.getpixel((0, 0))[3] == 0
+
+
+def test_text_alignment_left(client):
+    rv = client.get("/test?align=left")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_text_alignment_right(client):
+    rv = client.get("/test?align=right")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_custom_spacing(client):
+    rv = client.get("/test?spacing=20")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
