@@ -8,6 +8,7 @@ import requests
 MAX_IMAGE_SIZE = 4096
 
 _FONT_CANDIDATES: list[str] = []
+_FONT_CACHE: dict[int, ImageFont.FreeTypeFont | ImageFont.ImageFont] = {}
 _font_candidates_init = False
 _font_candidates_lock = threading.Lock()
 
@@ -30,6 +31,7 @@ def _validate_font_path(path: str) -> bool:
 
 
 def _init_font_candidates() -> None:
+    """Initialize font candidates list with environment variable and system fonts."""
     global _font_candidates_init
     if _font_candidates_init:
         return
@@ -57,13 +59,22 @@ def _init_font_candidates() -> None:
 
 
 def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load font with caching to avoid repeated filesystem probes."""
+    if font_size in _FONT_CACHE:
+        return _FONT_CACHE[font_size]
+
     _init_font_candidates()
     for path in _FONT_CANDIDATES:
         try:
-            return ImageFont.truetype(path, font_size)
+            font = ImageFont.truetype(path, font_size)
+            _FONT_CACHE[font_size] = font
+            return font
         except (IOError, OSError):
             continue
-    return ImageFont.load_default()
+
+    font = ImageFont.load_default()
+    _FONT_CACHE[font_size] = font
+    return font
 
 
 def generate_image(
