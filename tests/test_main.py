@@ -1,8 +1,8 @@
+import sys
 from io import BytesIO
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator
 from unittest.mock import MagicMock, patch
-import sys
 
 import pytest
 import requests
@@ -10,7 +10,8 @@ from flask.testing import FlaskClient
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, MAX_IMAGE_SIZE  # noqa: E402
+from main import MAX_IMAGE_SIZE, app  # noqa: E402
+from pillow_web.image import clear_cache
 from pillow_web.validation import validate_background_image_url
 
 
@@ -155,13 +156,14 @@ def test_transparent_background(client):
 
 
 def test_backgroundimage_success(client):
+    clear_cache()
     img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
     img.save(buf, "PNG")
-    buf.seek(0)
+    content = buf.getvalue()
 
     mock_response = MagicMock()
-    mock_response.raw = buf
+    mock_response.content = content
     mock_response.raise_for_status.return_value = None
 
     with patch("pillow_web.image.requests.get", return_value=mock_response):
@@ -171,6 +173,7 @@ def test_backgroundimage_success(client):
 
 
 def test_backgroundimage_fetch_failure(client):
+    clear_cache()
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
