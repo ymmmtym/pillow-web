@@ -2,6 +2,7 @@ import os
 import threading
 from functools import lru_cache
 from io import BytesIO
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import requests
 
@@ -11,6 +12,7 @@ MAX_IMAGE_SIZE = 4096
 _FONT_CANDIDATES: list[str] = []
 _font_candidates_init = False
 _font_candidates_lock = threading.Lock()
+_FONTS_DIR = Path(__file__).resolve().parent.parent.parent / "fonts"
 
 
 def _validate_font_path(path: str) -> bool:
@@ -45,9 +47,9 @@ def _init_font_candidates() -> None:
 
         _FONT_CANDIDATES.extend(
             [
-                "fonts/NotoSansJP-Regular.otf",
-                "fonts/NotoSansJP-Regular.ttf",
-                "fonts/NotoSansCJK-Regular.ttc",
+                str(_FONTS_DIR / "NotoSansJP-Regular.otf"),
+                str(_FONTS_DIR / "NotoSansJP-Regular.ttf"),
+                str(_FONTS_DIR / "NotoSansCJK-Regular.ttc"),
                 "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                 "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
                 "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
