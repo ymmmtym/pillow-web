@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from flask import Flask, Response, send_file, request
+import os
+
+from flask import Flask, Response, request, send_file
+
+from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
-from pillow_web.image import generate_image, save_image, MAX_IMAGE_SIZE
-from typing import Tuple, Union
 
 app = Flask(__name__)
+
+OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "openapi.yaml")
 
 
 @app.route("/")
@@ -17,7 +21,7 @@ def hello() -> str:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Pillew Web Image Generation API</title>
+        <title>Pillow Web Image Generation API</title>
         <style>
             body {{ font-family: sans-serif; margin: 2em; line-height: 1.6; }}
             code {{ background-color: #eee; padding: 2px 4px; border-radius: 3px; }}
@@ -27,12 +31,13 @@ def hello() -> str:
         </style>
     </head>
     <body>
-        <h1>Pillew Web Image Generation API</h1>
+        <h1>Pillow Web Image Generation API</h1>
         <p>このAPIは、指定されたテキストと様々なオプションで画像を生成します。</p>
 
         <h2>エンドポイント</h2>
         <p><code>GET /&lt;text&gt;</code></p>
         <p>例: <a href="{base_url}Hello_World"><code>{base_url}Hello_World</code></a></p>
+        <p><a href="{base_url}docs"><code>/docs</code></a> でAPIドキュメントを参照できます。</p>
 
         <h2>クエリパラメータ</h2>
         <ul>
@@ -49,6 +54,7 @@ def hello() -> str:
             <li><code>spacing</code> (整数, デフォルト: 4): テキストの行間のスペース。</li>
             <li><code>font_size</code> (整数, デフォルト: 120): テキストのフォントサイズ。</li>
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
+            <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg)。</li>
         </ul>
 
         <h2>例</h2>
@@ -65,8 +71,37 @@ def hello() -> str:
     return usage_html
 
 
+@app.route("/docs")
+def swagger_docs() -> str:
+    base_url = request.host_url
+    return f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Docs - Pillow Web</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+        SwaggerUIBundle({{
+            url: '{base_url}openapi.yaml',
+            dom_id: '#swagger-ui',
+        }});
+    </script>
+</body>
+</html>"""
+
+
+@app.route("/openapi.yaml")
+def openapi_spec():
+    return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
+
+
 @app.route("/<text>")
-def images(text: str) -> Union[Response, Tuple[str, int]]:
+def images(text: str) -> Response | tuple[str, int]:
     try:
         width = int(request.args.get("width", 600))
         height = int(request.args.get("height", 200))
