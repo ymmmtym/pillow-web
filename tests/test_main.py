@@ -11,6 +11,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import MAX_IMAGE_SIZE, app  # noqa: E402
+from pillow_web.image import clear_cache
 from pillow_web.validation import validate_background_image_url
 
 
@@ -154,14 +155,21 @@ def test_transparent_background(client: FlaskClient) -> None:
     assert rv.headers["Content-Type"] == "image/png"
 
 
+<<<<<<< HEAD
 def test_backgroundimage_success(client: FlaskClient) -> None:
+||||||| 7b0f5ce
+def test_backgroundimage_success(client):
+=======
+def test_backgroundimage_success(client):
+    clear_cache()
+>>>>>>> origin/main
     img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
     img.save(buf, "PNG")
-    buf.seek(0)
+    content = buf.getvalue()
 
     mock_response = MagicMock()
-    mock_response.raw = buf
+    mock_response.content = content
     mock_response.raise_for_status.return_value = None
 
     with patch("pillow_web.image.requests.get", return_value=mock_response):
@@ -170,10 +178,21 @@ def test_backgroundimage_success(client: FlaskClient) -> None:
         assert rv.headers["Content-Type"] == "image/png"
 
 
+<<<<<<< HEAD
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
+||||||| 7b0f5ce
+def test_backgroundimage_fetch_failure(client):
+    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+=======
+def test_backgroundimage_fetch_failure(client):
+    clear_cache()
+    with patch(
+        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
+    ):
+>>>>>>> origin/main
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
@@ -209,3 +228,48 @@ def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
     rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
     assert "must not exceed" in rv.data.decode()
+
+
+def test_japanese_text(client):
+    rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")  # /日本語
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_japanese_text_with_custom_size(client):
+    rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E?width=400&height=150&font_size=30")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_japanese_text_fallback_handles_error(client):
+    from pillow_web.image import _load_font
+
+    with patch("pillow_web.image._font_candidates_init", False), patch(
+        "pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]
+    ):
+        _load_font.cache_clear()
+        rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
+        assert rv.status_code == 200
+
+
+def test_font_path_validation_rejects_path_traversal():
+    from pillow_web.image import _validate_font_path
+
+    # Valid paths
+    assert _validate_font_path("/usr/share/fonts/font.ttf") is True
+    assert _validate_font_path("fonts/NotoSans.otf") is True
+    assert _validate_font_path("fonts/Font.TTC") is True  # Mixed case
+    assert _validate_font_path("releases.v2..ttf") is True  # Double dot in filename
+
+    # Path traversal attempts
+    assert _validate_font_path("../../../etc/passwd") is False
+    assert _validate_font_path("/path/../../../etc/passwd") is False
+    assert _validate_font_path("../abc/def/../font.ttf") is False
+
+    # Tilde expansion
+    assert _validate_font_path("~/fonts/font.ttf") is False
+
+    # Invalid extensions
+    assert _validate_font_path("/usr/share/fonts/font.txt") is False
+    assert _validate_font_path("") is False
