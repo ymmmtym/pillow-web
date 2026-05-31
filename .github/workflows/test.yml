@@ -26,5 +26,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev --locked
 
+      - name: Run type check
+        run: uv run mypy main.py src/pillow_web/ tests/
+
       - name: Run tests
         run: uv run python -m pytest
