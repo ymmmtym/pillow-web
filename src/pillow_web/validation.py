@@ -22,7 +22,7 @@ def is_private_ip(host):
 
 def validate_background_image_url(url):
     parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https'):
+    if parsed.scheme not in ("http", "https"):
         raise ValueError("httpもしくはhttpsのURLのみ許可されています")
     if not parsed.hostname:
         raise ValueError("URLにホスト名が含まれていません")
