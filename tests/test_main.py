@@ -1,8 +1,8 @@
+import sys
 from io import BytesIO
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator
 from unittest.mock import MagicMock, patch
-import sys
 
 import pytest
 import requests
@@ -10,13 +10,14 @@ from flask.testing import FlaskClient
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import app, MAX_IMAGE_SIZE  # noqa: E402
+from main import MAX_IMAGE_SIZE, app  # noqa: E402
 from pillow_web.validation import validate_background_image_url
 
 
 @pytest.fixture
 def client() -> Generator[FlaskClient, None, None]:
     app.testing = True
+    app.config["RATELIMIT_ENABLED"] = False
     with app.test_client() as client:
         yield client
 
@@ -161,7 +162,8 @@ def test_backgroundimage_success(client):
     buf.seek(0)
 
     mock_response = MagicMock()
-    mock_response.raw = buf
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = iter([buf.read()])
     mock_response.raise_for_status.return_value = None
 
     with patch("pillow_web.image.requests.get", return_value=mock_response):
@@ -170,8 +172,35 @@ def test_backgroundimage_success(client):
         assert rv.headers["Content-Type"] == "image/png"
 
 
+def test_backgroundimage_size_limit_content_length(client):
+    mock_response = MagicMock()
+    mock_response.headers = {"Content-Length": "20971520"}
+    mock_response.iter_content.return_value = iter([b""])
+    mock_response.raise_for_status.return_value = None
+
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        assert rv.status_code == 400
+        assert "大きすぎ" in rv.data.decode()
+
+
+def test_backgroundimage_size_limit_stream(client):
+    large_data = b"x" * (10 * 1024 * 1024 + 1)
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = iter([large_data])
+    mock_response.raise_for_status.return_value = None
+
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        assert rv.status_code == 400
+        assert "大きすぎ" in rv.data.decode()
+
+
 def test_backgroundimage_fetch_failure(client):
-    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
+    with patch(
+        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
+    ):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()

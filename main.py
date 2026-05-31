@@ -1,14 +1,27 @@
 from __future__ import annotations
 
-from flask import Flask, Response, send_file, request
+import logging
+
+from flask import Flask, Response, request, send_file
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
-from pillow_web.image import generate_image, save_image, MAX_IMAGE_SIZE
-from typing import Tuple, Union
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+)
 
 
 @app.route("/")
+@limiter.exempt
 def hello() -> str:
     base_url = request.host_url
     usage_html = f"""
@@ -66,7 +79,8 @@ def hello() -> str:
 
 
 @app.route("/<text>")
-def images(text: str) -> Union[Response, Tuple[str, int]]:
+def images(text: str) -> Response | tuple[str, int]:
+    logger.info("Request from %s: /%s args=%s", request.remote_addr, text, request.args)
     try:
         width = int(request.args.get("width", 600))
         height = int(request.args.get("height", 200))
