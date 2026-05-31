@@ -56,7 +56,7 @@ def _init_font_candidates() -> None:
                 str(_FONTS_DIR / "NotoSansJP-Regular.ttf"),
                 str(_FONTS_DIR / "NotoSansCJK-Regular.ttc"),
                 "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
                 "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
                 "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
                 "arial.ttf",
