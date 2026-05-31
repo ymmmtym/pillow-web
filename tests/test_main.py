@@ -229,14 +229,23 @@ def test_japanese_text_fallback_handles_error(client):
         assert rv.status_code == 200
 
 
-
 def test_font_path_validation_rejects_path_traversal():
     from pillow_web.image import _validate_font_path
 
+    # Valid paths
     assert _validate_font_path("/usr/share/fonts/font.ttf") is True
     assert _validate_font_path("fonts/NotoSans.otf") is True
+    assert _validate_font_path("fonts/Font.TTC") is True  # Mixed case
+    assert _validate_font_path("releases.v2..ttf") is True  # Double dot in filename
+
+    # Path traversal attempts
     assert _validate_font_path("../../../etc/passwd") is False
     assert _validate_font_path("/path/../../../etc/passwd") is False
+    assert _validate_font_path("../abc/def/../font.ttf") is False
+
+    # Tilde expansion
     assert _validate_font_path("~/fonts/font.ttf") is False
+
+    # Invalid extensions
     assert _validate_font_path("/usr/share/fonts/font.txt") is False
     assert _validate_font_path("") is False

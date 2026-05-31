@@ -1,4 +1,5 @@
 import os
+import threading
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import requests
@@ -7,42 +8,52 @@ import requests
 MAX_IMAGE_SIZE = 4096
 
 _FONT_CANDIDATES: list[str] = []
+_font_candidates_init = False
+_font_candidates_lock = threading.Lock()
 
 
 def _validate_font_path(path: str) -> bool:
     """Validate font path to prevent path traversal attacks."""
     if not path:
         return False
-    # Reject paths with path traversal patterns
-    if ".." in path or path.startswith("~"):
+    # Reject tilde expansion
+    if path.startswith("~"):
         return False
-    # Only allow common font extensions
-    allowed_extensions = (".ttf", ".otf", ".ttc", ".TTF", ".OTF", ".TTC")
-    if not path.endswith(allowed_extensions):
+    # Normalize and check for path traversal
+    normalized = os.path.normpath(path)
+    if normalized.startswith("..") or "/.." in normalized:
+        return False
+    # Only allow common font extensions (case-insensitive)
+    if not path.lower().endswith((".ttf", ".otf", ".ttc")):
         return False
     return True
 
 
 def _init_font_candidates() -> None:
-    if _FONT_CANDIDATES:
+    global _font_candidates_init
+    if _font_candidates_init:
         return
+    with _font_candidates_lock:
+        if _font_candidates_init:
+            return
 
-    env_font = os.environ.get("PILLOW_WEB_FONT_PATH")
-    if env_font and _validate_font_path(env_font):
-        _FONT_CANDIDATES.append(env_font)
+        env_font = os.environ.get("PILLOW_WEB_FONT_PATH")
+        if env_font and _validate_font_path(env_font):
+            _FONT_CANDIDATES.append(env_font)
 
-    _FONT_CANDIDATES.extend(
-        [
-            "fonts/NotoSansJP-Regular.otf",
-            "fonts/NotoSansJP-Regular.ttf",
-            "fonts/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
-            "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
-            "arial.ttf",
-        ]
-    )
+        _FONT_CANDIDATES.extend(
+            [
+                "fonts/NotoSansJP-Regular.otf",
+                "fonts/NotoSansJP-Regular.ttf",
+                "fonts/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
+                "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
+                "arial.ttf",
+            ]
+        )
+        _font_candidates_init = True
 
 
 def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
