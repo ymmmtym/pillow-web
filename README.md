@@ -62,6 +62,30 @@ open http://127.0.0.1:5000/docs
 
 OpenAPI 3.0仕様書は `/openapi.yaml` からも直接取得できます。
 
+## フォント設定
+
+日本語テキストを正しく表示するには、日本語対応フォントが必要です。
+以下の優先順位でフォントを探索します。
+
+1. **環境変数** `PILLOW_WEB_FONT_PATH` で指定されたパス
+2. `fonts/` ディレクトリ内のフォントファイル
+3. システムフォント（例: `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`）
+4. `arial.ttf`
+5. Pillowのデフォルトフォント
+
+### セットアップ例（Noto Sans CJK）
+
+```bash
+# Debian/Ubuntu
+sudo apt install fonts-noto-cjk
+
+# 環境変数で明示的に指定
+export PILLOW_WEB_FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+
+# またはプロジェクト内に配置
+# cp NotoSansJP-Regular.otf fonts/
+```
+
 ## デプロイガイド
 
 ### Docker
