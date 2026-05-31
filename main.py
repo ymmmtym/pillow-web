@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from flask import Flask, Response, send_file, request
-from pillow_web.validation import validate_background_image_url
-from pillow_web.image import generate_image, save_image, MAX_IMAGE_SIZE
 from typing import Tuple, Union
+
+from flask import Flask, Response, request, send_file
+
+from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
+from pillow_web.validation import validate_background_image_url
 
 app = Flask(__name__)
 

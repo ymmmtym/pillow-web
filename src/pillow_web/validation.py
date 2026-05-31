@@ -1,6 +1,6 @@
-from urllib.parse import urlparse
 import ipaddress
 import socket
+from urllib.parse import urlparse
 
 
 def is_private_ip(host):
