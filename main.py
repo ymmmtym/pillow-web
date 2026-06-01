@@ -133,6 +133,8 @@ def images(text: str) -> Response | tuple[str, int]:
         fill: str = request.args.get("fill", DEFAULT_FILL)
         align: str = request.args.get("align", DEFAULT_ALIGN)
         spacing = int(request.args.get("spacing", DEFAULT_SPACING))
+        if spacing < 0:
+            return "spacing must not be negative", 400
         font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
         background_image_url: str | None = request.args.get("backgroundimage")
 

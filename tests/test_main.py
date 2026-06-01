@@ -213,6 +213,11 @@ def test_invalid_spacing_non_numeric(client: FlaskClient) -> None:
     assert rv.status_code == 400
 
 
+def test_spacing_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?spacing=-1")
+    assert rv.status_code == 400
+
+
 def test_invalid_font_size_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?font_size=abc")
     assert rv.status_code == 400
