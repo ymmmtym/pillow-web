@@ -1,7 +1,7 @@
 import sys
+from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -155,14 +155,8 @@ def test_transparent_background(client: FlaskClient) -> None:
     assert rv.headers["Content-Type"] == "image/png"
 
 
-<<<<<<< HEAD
 def test_backgroundimage_success(client: FlaskClient) -> None:
-||||||| 7b0f5ce
-def test_backgroundimage_success(client):
-=======
-def test_backgroundimage_success(client):
     clear_cache()
->>>>>>> origin/main
     img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
     img.save(buf, "PNG")
@@ -178,21 +172,11 @@ def test_backgroundimage_success(client):
         assert rv.headers["Content-Type"] == "image/png"
 
 
-<<<<<<< HEAD
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
-    with patch(
-        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
-    ):
-||||||| 7b0f5ce
-def test_backgroundimage_fetch_failure(client):
-    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
-=======
-def test_backgroundimage_fetch_failure(client):
     clear_cache()
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
->>>>>>> origin/main
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
@@ -230,30 +214,31 @@ def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
     assert "must not exceed" in rv.data.decode()
 
 
-def test_japanese_text(client):
+def test_japanese_text(client: FlaskClient) -> None:
     rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")  # /日本語
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
 
 
-def test_japanese_text_with_custom_size(client):
+def test_japanese_text_with_custom_size(client: FlaskClient) -> None:
     rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E?width=400&height=150&font_size=30")
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
 
 
-def test_japanese_text_fallback_handles_error(client):
+def test_japanese_text_fallback_handles_error(client: FlaskClient) -> None:
     from pillow_web.image import _load_font
 
-    with patch("pillow_web.image._font_candidates_init", False), patch(
-        "pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]
+    with (
+        patch("pillow_web.image._font_candidates_init", False),
+        patch("pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]),
     ):
         _load_font.cache_clear()
         rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
         assert rv.status_code == 200
 
 
-def test_font_path_validation_rejects_path_traversal():
+def test_font_path_validation_rejects_path_traversal() -> None:
     from pillow_web.image import _validate_font_path
 
     # Valid paths
@@ -273,7 +258,6 @@ def test_font_path_validation_rejects_path_traversal():
     # Invalid extensions
     assert _validate_font_path("/usr/share/fonts/font.txt") is False
     assert _validate_font_path("") is False
-
 
 
 # Edge case: large font_size
@@ -349,7 +333,8 @@ def test_image_rgba_transparent(client: FlaskClient) -> None:
     img = Image.open(BytesIO(rv.data))
     assert img.mode == "RGBA"
     # Top-left corner should be fully transparent
-    assert img.getpixel((0, 0))[3] == 0
+    pixel = img.getpixel((0, 0))
+    assert isinstance(pixel, tuple) and pixel[3] == 0
 
 
 def test_text_alignment_left(client: FlaskClient) -> None:

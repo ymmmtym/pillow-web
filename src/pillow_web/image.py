@@ -79,14 +79,12 @@ def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for path in _FONT_CANDIDATES:
         try:
             return ImageFont.truetype(path, font_size)
-        except (IOError, OSError):
+        except OSError:
             continue
     return ImageFont.load_default()
 
 
-def _get_cached_background_image(
-    url: str, mode: str, width: int, height: int
-) -> Image.Image | None:
+def _get_cached_background_image(url: str, mode: str, width: int, height: int) -> Image.Image | None:
     now = time.time()
     if url in _background_image_cache:
         timestamp, data = _background_image_cache[url]

@@ -110,7 +110,7 @@ def swagger_docs() -> str:
 
 
 @app.route("/openapi.yaml")
-def openapi_spec():
+def openapi_spec() -> Response:
     return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
 
 
