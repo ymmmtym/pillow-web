@@ -129,6 +129,8 @@ def images(text: str) -> Response | tuple[str, int]:
             return f"height must not exceed {MAX_IMAGE_SIZE}", 400
 
         mode: str = request.args.get("mode", DEFAULT_MODE)
+        if mode not in ("RGB", "RGBA"):
+            return "mode must be RGB or RGBA", 400
         color_spec: str = request.args.get("color", DEFAULT_COLOR)
         fill: str = request.args.get("fill", DEFAULT_FILL)
         align: str = request.args.get("align", DEFAULT_ALIGN)
