@@ -155,14 +155,8 @@ def test_transparent_background(client: FlaskClient) -> None:
     assert rv.headers["Content-Type"] == "image/png"
 
 
-<<<<<<< HEAD
 def test_backgroundimage_success(client: FlaskClient) -> None:
-||||||| 7b0f5ce
-def test_backgroundimage_success(client):
-=======
-def test_backgroundimage_success(client):
     clear_cache()
->>>>>>> origin/main
     img = Image.new("RGB", (100, 100), (255, 0, 0))
     buf = BytesIO()
     img.save(buf, "PNG")
@@ -178,21 +172,11 @@ def test_backgroundimage_success(client):
         assert rv.headers["Content-Type"] == "image/png"
 
 
-<<<<<<< HEAD
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
-    with patch(
-        "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
-    ):
-||||||| 7b0f5ce
-def test_backgroundimage_fetch_failure(client):
-    with patch("pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")):
-=======
-def test_backgroundimage_fetch_failure(client):
     clear_cache()
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
->>>>>>> origin/main
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
         assert "背景画像の読み込みに失敗" in rv.data.decode()
@@ -273,7 +257,6 @@ def test_font_path_validation_rejects_path_traversal():
     # Invalid extensions
     assert _validate_font_path("/usr/share/fonts/font.txt") is False
     assert _validate_font_path("") is False
-
 
 
 # Edge case: large font_size
