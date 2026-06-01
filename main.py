@@ -132,6 +132,8 @@ def images(text: str) -> Response | tuple[str, int]:
         color_spec: str = request.args.get("color", DEFAULT_COLOR)
         fill: str = request.args.get("fill", DEFAULT_FILL)
         align: str = request.args.get("align", DEFAULT_ALIGN)
+        if align not in ("left", "center", "right"):
+            return "align must be left, center, or right", 400
         spacing = int(request.args.get("spacing", DEFAULT_SPACING))
         font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
         background_image_url: str | None = request.args.get("backgroundimage")
