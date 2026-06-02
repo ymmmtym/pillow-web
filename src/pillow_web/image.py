@@ -171,6 +171,9 @@ def save_image(
         save_format = "PNG"
         mimetype = "image/png"
 
+    if save_format == "JPEG" and image.mode in ("RGBA", "P"):
+        image = image.convert("RGB")
+
     image_io = BytesIO()
     image.save(image_io, save_format, quality=quality)
     image_io.seek(0)
