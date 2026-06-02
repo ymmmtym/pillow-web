@@ -17,6 +17,7 @@ CACHE_TTL = 3600
 CACHE_MAX_SIZE = 20
 
 _background_image_cache: dict[str, tuple[float, bytes]] = {}
+_cache_lock = threading.Lock()
 
 _FONT_CANDIDATES: list[str] = []
 _font_candidates_init = False
@@ -87,29 +88,31 @@ def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 def _get_cached_background_image(
     url: str, mode: str, width: int, height: int
 ) -> Image.Image | None:
-    now = time.time()
-    if url in _background_image_cache:
-        timestamp, data = _background_image_cache[url]
-        if now - timestamp < CACHE_TTL:
-            image = Image.open(BytesIO(data)).convert(mode)
-            image = image.resize((width, height))
-            return image
-        else:
-            del _background_image_cache[url]
+    with _cache_lock:
+        now = time.time()
+        if url in _background_image_cache:
+            timestamp, data = _background_image_cache[url]
+            if now - timestamp < CACHE_TTL:
+                image = Image.open(BytesIO(data)).convert(mode)
+                image = image.resize((width, height))
+                return image
+            else:
+                del _background_image_cache[url]
 
     return None
 
 
 def _set_cached_background_image(url: str, data: bytes) -> None:
-    if len(_background_image_cache) >= CACHE_MAX_SIZE:
-        oldest_url = min(_background_image_cache, key=lambda k: _background_image_cache[k][0])
-        del _background_image_cache[oldest_url]
-
-    _background_image_cache[url] = (time.time(), data)
+    with _cache_lock:
+        if len(_background_image_cache) >= CACHE_MAX_SIZE:
+            oldest_url = min(_background_image_cache, key=lambda k: _background_image_cache[k][0])
+            del _background_image_cache[oldest_url]
+        _background_image_cache[url] = (time.time(), data)
 
 
 def clear_cache() -> None:
-    _background_image_cache.clear()
+    with _cache_lock:
+        _background_image_cache.clear()
 
 
 def generate_image(
