@@ -136,6 +136,15 @@ def images(text: str) -> Response | tuple[str, int]:
         font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
         background_image_url: str | None = request.args.get("backgroundimage")
 
+        if font_size <= 0:
+            return "font_size must be greater than 0", 400
+        if spacing < 0:
+            return "spacing must not be negative", 400
+        if align not in ("left", "center", "right"):
+            return "align must be one of: left, center, right", 400
+        if mode not in ("RGB", "RGBA"):
+            return "mode must be one of: RGB, RGBA", 400
+
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
