@@ -228,6 +228,109 @@ def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
     assert "must not exceed" in rv.data.decode()
 
 
+# Text position tests
+
+
+def test_position_top_left(client):
+    rv = client.get("/test?position=top-left")
+    assert rv.status_code == 200
+
+
+def test_position_top_center(client):
+    rv = client.get("/test?position=top-center")
+    assert rv.status_code == 200
+
+
+def test_position_top_right(client):
+    rv = client.get("/test?position=top-right")
+    assert rv.status_code == 200
+
+
+def test_position_center_left(client):
+    rv = client.get("/test?position=center-left")
+    assert rv.status_code == 200
+
+
+def test_position_center(client):
+    rv = client.get("/test?position=center")
+    assert rv.status_code == 200
+
+
+def test_position_center_right(client):
+    rv = client.get("/test?position=center-right")
+    assert rv.status_code == 200
+
+
+def test_position_bottom_left(client):
+    rv = client.get("/test?position=bottom-left")
+    assert rv.status_code == 200
+
+
+def test_position_bottom_center(client):
+    rv = client.get("/test?position=bottom-center")
+    assert rv.status_code == 200
+
+
+def test_position_bottom_right(client):
+    rv = client.get("/test?position=bottom-right")
+    assert rv.status_code == 200
+
+
+def test_position_underscore_variant(client):
+    rv = client.get("/test?position=bottom_right")
+    assert rv.status_code == 200
+
+
+def test_position_invalid(client):
+    rv = client.get("/test?position=invalid-position")
+    assert rv.status_code == 400
+
+
+def test_xy_coordinates(client):
+    rv = client.get("/test?x=100&y=50")
+    assert rv.status_code == 200
+
+
+def test_x_only(client):
+    rv = client.get("/test?x=100")
+    assert rv.status_code == 200
+
+
+def test_y_only(client):
+    rv = client.get("/test?y=50")
+    assert rv.status_code == 200
+
+
+def test_xy_non_numeric(client):
+    rv = client.get("/test?x=abc")
+    assert rv.status_code == 400
+
+
+def test_offset_xy(client):
+    rv = client.get("/test?offset_x=10&offset_y=20")
+    assert rv.status_code == 200
+
+
+def test_position_with_offset(client):
+    rv = client.get("/test?position=bottom-right&offset_x=-10&offset_y=-10")
+    assert rv.status_code == 200
+
+
+def test_xy_with_offset(client):
+    rv = client.get("/test?x=200&y=100&offset_x=5&offset_y=5")
+    assert rv.status_code == 200
+
+
+def test_offset_x_non_numeric(client):
+    rv = client.get("/test?offset_x=abc")
+    assert rv.status_code == 400
+
+
+def test_offset_y_non_numeric(client):
+    rv = client.get("/test?offset_y=abc")
+    assert rv.status_code == 400
+
+
 def test_japanese_text(client):
     rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")  # /日本語
     assert rv.status_code == 200

@@ -21,6 +21,11 @@ DEFAULT_ALIGN = "center"
 DEFAULT_SPACING = 4
 DEFAULT_FONT_SIZE = 120
 
+from flask import Flask, Response, request, send_file
+
+from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
+from pillow_web.validation import validate_background_image_url
+
 app = Flask(__name__)
 
 OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "openapi.yaml")
@@ -145,6 +150,14 @@ def images(text: str) -> Response | tuple[str, int]:
         if mode not in ("RGB", "RGBA"):
             return "mode must be one of: RGB, RGBA", 400
 
+        x_param = request.args.get("x")
+        y_param = request.args.get("y")
+        position = request.args.get("position")
+        offset_x = int(request.args.get("offset_x", 0))
+        offset_y = int(request.args.get("offset_y", 0))
+        x = int(x_param) if x_param is not None else None
+        y = int(y_param) if y_param is not None else None
+
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
@@ -162,6 +175,11 @@ def images(text: str) -> Response | tuple[str, int]:
             spacing=spacing,
             font_size=font_size,
             background_image_url=background_image_url,
+            x=x,
+            y=y,
+            position=position,
+            offset_x=offset_x,
+            offset_y=offset_y,
         )
 
         format_param: str = request.args.get("format", "png").lower()
