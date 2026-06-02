@@ -493,3 +493,27 @@ def test_invalid_align(client: FlaskClient) -> None:
 def test_invalid_mode(client: FlaskClient) -> None:
     rv = client.get("/test?mode=CMYK")
     assert rv.status_code == 400
+
+
+def test_backgroundimage_size_limit_content_length(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"Content-Length": f"{11 * 1024 * 1024}"}
+    mock_response.iter_content.return_value = [b"x" * 11 * 1024 * 1024]
+    mock_response.__enter__.return_value = mock_response
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        assert rv.status_code == 400
+
+
+def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = [b"x" * (11 * 1024 * 1024)]
+    mock_response.__enter__.return_value = mock_response
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        assert rv.status_code == 400

@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import logging
 import os
 
 from flask import Flask, Response, request, send_file
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "app",
@@ -27,11 +33,17 @@ from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
 
 app = Flask(__name__)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+)
 
 OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "openapi.yaml")
 
 
 @app.route("/")
+@limiter.exempt
 def hello() -> str:
     base_url: str = request.host_url
     usage_html: str = f"""
@@ -121,6 +133,7 @@ def openapi_spec():
 
 @app.route("/<text>")
 def images(text: str) -> Response | tuple[str, int]:
+    logger.info("Request from %s: /%s args=%s", request.remote_addr, text, request.args)
     try:
         width = int(request.args.get("width", DEFAULT_WIDTH))
         height = int(request.args.get("height", DEFAULT_HEIGHT))
@@ -140,6 +153,13 @@ def images(text: str) -> Response | tuple[str, int]:
         spacing = int(request.args.get("spacing", DEFAULT_SPACING))
         font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
         background_image_url: str | None = request.args.get("backgroundimage")
+        x_param = request.args.get("x")
+        y_param = request.args.get("y")
+        position = request.args.get("position")
+        offset_x = int(request.args.get("offset_x", 0))
+        offset_y = int(request.args.get("offset_y", 0))
+        x = int(x_param) if x_param is not None else None
+        y = int(y_param) if y_param is not None else None
 
         if font_size <= 0:
             return "font_size must be greater than 0", 400
