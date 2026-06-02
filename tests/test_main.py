@@ -368,3 +368,22 @@ def test_custom_spacing(client: FlaskClient) -> None:
     rv = client.get("/test?spacing=20")
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_root_route(client: FlaskClient) -> None:
+    rv = client.get("/")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"].startswith("text/html")
+
+
+def test_docs_route(client: FlaskClient) -> None:
+    rv = client.get("/docs")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"].startswith("text/html")
+    assert "swagger-ui" in rv.data.decode()
+
+
+def test_openapi_yaml(client: FlaskClient) -> None:
+    rv = client.get("/openapi.yaml")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"].startswith("text/yaml")
