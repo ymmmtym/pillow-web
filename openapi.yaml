@@ -1,0 +1,135 @@
+openapi: "3.0.3"
+info:
+  title: Pillow Web Image Generation API
+  description: |
+    指定されたテキストと様々なオプションで画像を生成するAPIです。
+    テキストを画像としてレンダリングし、サイズ、色、フォント、背景などをカスタマイズできます。
+  version: "0.1.0"
+  contact:
+    name: ymmymtm
+
+servers:
+  - url: http://localhost:5000
+    description: ローカル開発サーバー
+
+paths:
+  /:
+    get:
+      summary: API利用ページ
+      description: APIの使用方法を説明するHTMLページを返します。
+      responses:
+        "200":
+          description: 利用方法を示すHTMLページ
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /{text}:
+    get:
+      summary: 画像生成
+      description: |
+        指定されたテキストを画像として生成します。
+        クエリパラメータでサイズ、色、フォント、背景などをカスタマイズできます。
+      parameters:
+        - name: text
+          in: path
+          required: true
+          description: 画像に描画するテキスト
+          schema:
+            type: string
+        - name: width
+          in: query
+          description: 生成する画像の幅（ピクセル）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4096
+            default: 600
+        - name: height
+          in: query
+          description: 生成する画像の高さ（ピクセル）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4096
+            default: 200
+        - name: mode
+          in: query
+          description: 画像のモード（RGB, RGBAなど）
+          schema:
+            type: string
+            default: RGB
+        - name: color
+          in: query
+          description: 背景色。RGBAモードで `transparent` を指定すると透明背景になります。
+          schema:
+            type: string
+            default: black
+        - name: fill
+          in: query
+          description: テキストの色
+          schema:
+            type: string
+            default: white
+        - name: align
+          in: query
+          description: テキストの配置
+          schema:
+            type: string
+            enum: [left, center, right]
+            default: center
+        - name: spacing
+          in: query
+          description: テキストの行間のスペース（ピクセル）
+          schema:
+            type: integer
+            default: 4
+        - name: font_size
+          in: query
+          description: テキストのフォントサイズ
+          schema:
+            type: integer
+            default: 120
+        - name: backgroundimage
+          in: query
+          description: |
+            背景として使用する画像のURL。
+            指定された場合、colorパラメータは無視されます。
+            プライベートIPアドレスへのリクエストはブロックされます。
+          schema:
+            type: string
+            format: uri
+        - name: format
+          in: query
+          description: 出力画像のフォーマット
+          schema:
+            type: string
+            enum: [png, jpg, jpeg]
+            default: png
+      responses:
+        "200":
+          description: 生成された画像ファイル
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: リクエストエラー（無効なパラメータ値など）
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: width must be greater than 0
+        "500":
+          description: サーバー内部エラー
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "予期せぬエラーが発生しました: <error details>"
