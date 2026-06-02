@@ -165,11 +165,25 @@ def test_backgroundimage_success(client: FlaskClient) -> None:
     mock_response = MagicMock()
     mock_response.content = content
     mock_response.raise_for_status.return_value = None
+    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
 
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 200
         assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_backgroundimage_dns_rebinding_blocked(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.raw._connection.sock.getpeername.return_value = ("127.0.0.1", 5000)
+
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        assert rv.status_code == 400
+        assert "プライベートネットワーク" in rv.data.decode()
+
 
 
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:

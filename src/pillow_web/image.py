@@ -10,6 +10,8 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+from pillow_web.validation import is_private_ip
+
 MAX_IMAGE_SIZE = 4096
 BACKGROUND_IMAGE_TIMEOUT = 10
 DEFAULT_QUALITY = 70
@@ -133,6 +135,11 @@ def generate_image(
             try:
                 response = requests.get(background_image_url, timeout=BACKGROUND_IMAGE_TIMEOUT)
                 response.raise_for_status()
+                sock = response.raw._connection.sock
+                if sock is not None:
+                    peer_ip = sock.getpeername()[0]
+                    if is_private_ip(peer_ip):
+                        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
                 data = response.content
                 _set_cached_background_image(background_image_url, data)
                 image = Image.open(BytesIO(data)).convert(mode)
