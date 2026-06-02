@@ -10,6 +10,8 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+from pillow_web.validation import is_private_ip
+
 MAX_IMAGE_SIZE = 4096
 MAX_BACKGROUND_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 BACKGROUND_IMAGE_TIMEOUT = 10
@@ -30,24 +32,19 @@ ColorSpec = str | tuple[int, int, int, int]
 
 
 def _validate_font_path(path: str) -> bool:
-    """Validate font path to prevent path traversal attacks."""
     if not path:
         return False
-    # Reject tilde expansion
     if path.startswith("~"):
         return False
-    # Normalize and check for path traversal
     normalized = os.path.normpath(path)
     if normalized.startswith("..") or "/.." in normalized:
         return False
-    # Only allow common font extensions (case-insensitive)
     if not path.lower().endswith((".ttf", ".otf", ".ttc")):
         return False
     return True
 
 
 def _init_font_candidates() -> None:
-    """Initialize font candidates list with environment variable and system fonts."""
     global _font_candidates_init
     if _font_candidates_init:
         return
@@ -76,7 +73,6 @@ def _init_font_candidates() -> None:
 
 @lru_cache(maxsize=64)
 def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load font with LRU caching (max 64 sizes) to avoid repeated filesystem probes."""
     _init_font_candidates()
     for path in _FONT_CANDIDATES:
         try:
@@ -84,6 +80,61 @@ def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         except OSError:
             continue
     return ImageFont.load_default()
+
+
+POSITION_MAP = {
+    "top-left": ("la", 0, 0),
+    "top-center": ("ma", 0, 0),
+    "top-right": ("ra", 0, 0),
+    "center-left": ("lm", 0, 0),
+    "center": ("mm", 0, 0),
+    "center-right": ("rm", 0, 0),
+    "bottom-left": ("ld", 0, 0),
+    "bottom-center": ("md", 0, 0),
+    "bottom-right": ("rd", 0, 0),
+}
+
+
+def _resolve_position(width, height, x=None, y=None, position=None, offset_x=0, offset_y=0):
+    anchor = "mm"
+    pos_x = width / 2
+    pos_y = height / 2
+
+    if position is not None:
+        position = position.lower().replace("_", "-")
+        if position not in POSITION_MAP:
+            valid = ", ".join(sorted(POSITION_MAP))
+            raise ValueError(f"無効なpositionです: {position}. 有効な値: {valid}")
+        anchor, _, _ = POSITION_MAP[position]
+
+    if position == "top-left":
+        pos_x, pos_y = 0, 0
+    elif position == "top-center":
+        pos_x, pos_y = width / 2, 0
+    elif position == "top-right":
+        pos_x, pos_y = width, 0
+    elif position == "center-left":
+        pos_x, pos_y = 0, height / 2
+    elif position == "center":
+        pos_x, pos_y = width / 2, height / 2
+    elif position == "center-right":
+        pos_x, pos_y = width, height / 2
+    elif position == "bottom-left":
+        pos_x, pos_y = 0, height
+    elif position == "bottom-center":
+        pos_x, pos_y = width / 2, height
+    elif position == "bottom-right":
+        pos_x, pos_y = width, height
+
+    if x is not None:
+        pos_x = x
+    if y is not None:
+        pos_y = y
+
+    pos_x += offset_x
+    pos_y += offset_y
+
+    return pos_x, pos_y, anchor
 
 
 def _get_cached_background_image(url: str, mode: str, width: int, height: int) -> Image.Image | None:
@@ -125,6 +176,11 @@ def generate_image(
     spacing: int = 4,
     font_size: int = 120,
     background_image_url: str | None = None,
+    x: int | None = None,
+    y: int | None = None,
+    position: str | None = None,
+    offset_x: int = 0,
+    offset_y: int = 0,
 ) -> Image.Image:
     if background_image_url:
         cached = _get_cached_background_image(background_image_url, mode, width, height)
@@ -134,6 +190,11 @@ def generate_image(
             try:
                 response = requests.get(background_image_url, timeout=BACKGROUND_IMAGE_TIMEOUT)
                 response.raise_for_status()
+                sock = response.raw._connection.sock
+                if sock is not None:
+                    peer_ip = sock.getpeername()[0]
+                    if is_private_ip(peer_ip):
+                        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
                 content_length = response.headers.get("Content-Length")
                 if content_length and int(content_length) > MAX_BACKGROUND_IMAGE_SIZE:
                     raise ValueError("背景画像のサイズが大きすぎます（最大10 MB）")
@@ -156,16 +217,18 @@ def generate_image(
 
     font = _load_font(font_size)
 
-    draw = ImageDraw.Draw(image)
-    draw.text(
-        (width / 2, height / 2),
-        text,
-        fill=fill,
-        font=font,
-        anchor="mm",
-        align=align,
-        spacing=spacing,
+    pos_x, pos_y, anchor = _resolve_position(
+        width,
+        height,
+        x=x,
+        y=y,
+        position=position,
+        offset_x=offset_x,
+        offset_y=offset_y,
     )
+
+    draw = ImageDraw.Draw(image)
+    draw.text((pos_x, pos_y), text, fill=fill, font=font, anchor=anchor, align=align, spacing=spacing)
 
     return image
 

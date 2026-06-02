@@ -39,6 +39,11 @@
 *   **`font_size`** (整数, デフォルト: 120): テキストのフォントサイズ。
 *   **`format`** (文字列, デフォルト: `png`): 出力画像のフォーマット (`png`, `jpg`, `jpeg`)。
 *   **`backgroundimage`** (URL): 背景として使用する画像のURL。指定された場合、`color`パラメータは無視されます。
+*   **`x`** (整数, オプション): テキストのX座標（ピクセル）。指定しない場合は中央配置。
+*   **`y`** (整数, オプション): テキストのY座標（ピクセル）。指定しない場合は中央配置。
+*   **`position`** (文字列, オプション): テキストの配置位置。`top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` のいずれか。
+*   **`offset_x`** (整数, デフォルト: 0): X方向の相対オフセット（ピクセル）。
+*   **`offset_y`** (整数, デフォルト: 0): Y方向の相対オフセット（ピクセル）。
 
 ### 使用例
 
@@ -50,6 +55,8 @@
 *   **透明な背景:** `http://127.0.0.1:5000/Transparent_Background?mode=RGBA&color=transparent`
 *   **画像背景:** `http://127.0.0.1:5000/With_Image_Background?backgroundimage=https://example.com/your_image.jpg`
     *(`https://example.com/your_image.jpg` を実際の画像のURLに置き換えてください。)*
+*   **テキスト位置指定:** `http://127.0.0.1:5000/Bottom_Right?position=bottom-right&offset_x=-10&offset_y=-10`
+*   **ピクセル指定:** `http://127.0.0.1:5000/Exact_Position?x=50&y=50`
 
 
 
