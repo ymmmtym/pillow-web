@@ -161,6 +161,10 @@ def images(text: str) -> Response | tuple[str, int]:
         if mode not in ("RGB", "RGBA"):
             return "mode must be one of: RGB, RGBA", 400
 
+        format_param: str = request.args.get("format", "png").lower()
+        if format_param not in ("png", "jpg", "jpeg"):
+            return "Unsupported format", 400
+
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
@@ -184,10 +188,6 @@ def images(text: str) -> Response | tuple[str, int]:
             offset_x=offset_x,
             offset_y=offset_y,
         )
-
-        format_param: str = request.args.get("format", "png").lower()
-        if format_param not in ("png", "jpg", "jpeg"):
-            return "Unsupported format", 400
 
         image_io, mimetype = save_image(image, format=format_param)
 
