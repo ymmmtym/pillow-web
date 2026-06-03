@@ -1,7 +1,7 @@
 [project]
 name = "pillow-web"
 version = "0.1.0"
-description = "Add a short description here"
+description = "A simple Flask API for generating images with Pillow"
 authors = [
     { name = "ymmmtym", email = "26668352+ymmmtym@users.noreply.github.com" }
 ]
