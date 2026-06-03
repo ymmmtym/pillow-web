@@ -10,7 +10,6 @@ dist/
 coverage.xml
 coverage/
 tests/
-README.md
 AGENTS.md
 renovate.json
 mise.toml
