@@ -95,7 +95,15 @@ POSITION_MAP = {
 }
 
 
-def _resolve_position(width: int, height: int, x: int | None = None, y: int | None = None, position: str | None = None, offset_x: int = 0, offset_y: int = 0) -> tuple[float, float, str]:
+def _resolve_position(
+    width: int,
+    height: int,
+    x: int | None = None,
+    y: int | None = None,
+    position: str | None = None,
+    offset_x: int = 0,
+    offset_y: int = 0,
+) -> tuple[float, float, str]:
     anchor = "mm"
     pos_x = width / 2
     pos_y = height / 2
