@@ -166,14 +166,6 @@ def images(text: str) -> Response | tuple[str, int]:
         if mode not in ("RGB", "RGBA"):
             return "mode must be one of: RGB, RGBA", 400
 
-        x_param = request.args.get("x")
-        y_param = request.args.get("y")
-        position = request.args.get("position")
-        offset_x = int(request.args.get("offset_x", 0))
-        offset_y = int(request.args.get("offset_y", 0))
-        x = int(x_param) if x_param is not None else None
-        y = int(y_param) if y_param is not None else None
-
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
