@@ -22,11 +22,6 @@ DEFAULT_ALIGN = "center"
 DEFAULT_SPACING = 4
 DEFAULT_FONT_SIZE = 120
 
-from flask import Flask, Response, request, send_file
-
-from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
-from pillow_web.validation import validate_background_image_url
-
 app = Flask(__name__)
 limiter = Limiter(
     app=app,

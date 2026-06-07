@@ -1,7 +1,7 @@
 import sys
+from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,15 +10,15 @@ from flask.testing import FlaskClient
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from main import MAX_IMAGE_SIZE, app  # noqa: E402
-from pillow_web.image import clear_cache
+import main as main_module  # noqa: E402
+from pillow_web.image import MAX_IMAGE_SIZE, clear_cache
 from pillow_web.validation import validate_background_image_url
 
 
 @pytest.fixture
 def client() -> Generator[FlaskClient, None, None]:
-    app.testing = True
-    with app.test_client() as client:
+    main_module.app.testing = True
+    with main_module.app.test_client() as client:
         yield client
 
 
@@ -185,7 +185,6 @@ def test_backgroundimage_dns_rebinding_blocked(client: FlaskClient) -> None:
         assert "プライベートネットワーク" in rv.data.decode()
 
 
-
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
     clear_cache()
     with patch(
@@ -346,8 +345,9 @@ def test_japanese_text_with_custom_size(client):
 def test_japanese_text_fallback_handles_error(client):
     from pillow_web.image import _load_font
 
-    with patch("pillow_web.image._font_candidates_init", False), patch(
-        "pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]
+    with (
+        patch("pillow_web.image._font_candidates_init", False),
+        patch("pillow_web.image._FONT_CANDIDATES", ["/nonexistent/font.ttf"]),
     ):
         _load_font.cache_clear()
         rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")
