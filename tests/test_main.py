@@ -11,6 +11,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import main as main_module  # noqa: E402
+from pillow_web.exceptions import ValidationError
 from pillow_web.image import MAX_IMAGE_SIZE, clear_cache
 from pillow_web.validation import validate_background_image_url
 
@@ -55,42 +56,42 @@ def test_invalid_format(client: FlaskClient) -> None:
 
 
 def test_validate_url_private_ipv4_loopback() -> None:
-    with pytest.raises(ValueError, match="プライベートネットワーク"):
+    with pytest.raises(ValidationError, match="プライベートネットワーク"):
         validate_background_image_url("http://127.0.0.1:5000/image.jpg")
 
 
 def test_validate_url_private_ipv4_10() -> None:
-    with pytest.raises(ValueError, match="プライベートネットワーク"):
+    with pytest.raises(ValidationError, match="プライベートネットワーク"):
         validate_background_image_url("http://10.0.0.1/image.jpg")
 
 
 def test_validate_url_private_ipv4_172() -> None:
-    with pytest.raises(ValueError, match="プライベートネットワーク"):
+    with pytest.raises(ValidationError, match="プライベートネットワーク"):
         validate_background_image_url("http://172.16.0.1/image.jpg")
 
 
 def test_validate_url_private_ipv4_192() -> None:
-    with pytest.raises(ValueError, match="プライベートネットワーク"):
+    with pytest.raises(ValidationError, match="プライベートネットワーク"):
         validate_background_image_url("http://192.168.1.1/image.jpg")
 
 
 def test_validate_url_private_ipv6_loopback() -> None:
-    with pytest.raises(ValueError, match="プライベートネットワーク"):
+    with pytest.raises(ValidationError, match="プライベートネットワーク"):
         validate_background_image_url("http://[::1]:5000/image.jpg")
 
 
 def test_validate_url_invalid_scheme_file() -> None:
-    with pytest.raises(ValueError, match="httpもしくはhttps"):
+    with pytest.raises(ValidationError, match="httpもしくはhttps"):
         validate_background_image_url("file:///etc/passwd")
 
 
 def test_validate_url_invalid_scheme_ftp() -> None:
-    with pytest.raises(ValueError, match="httpもしくはhttps"):
+    with pytest.raises(ValidationError, match="httpもしくはhttps"):
         validate_background_image_url("ftp://example.com/image.jpg")
 
 
 def test_validate_url_no_hostname() -> None:
-    with pytest.raises(ValueError, match="ホスト名"):
+    with pytest.raises(ValidationError, match="ホスト名"):
         validate_background_image_url("http:///image.jpg")
 
 
@@ -193,7 +194,7 @@ def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
-        assert rv.status_code == 400
+        assert rv.status_code == 503
         assert "背景画像の読み込みに失敗" in rv.data.decode()
 
 
@@ -220,13 +221,13 @@ def test_invalid_font_size_non_numeric(client: FlaskClient) -> None:
 def test_width_exceeds_max_with_message(client: FlaskClient) -> None:
     rv = client.get(f"/test?width={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
-    assert "must not exceed" in rv.data.decode()
+    assert "超えない" in rv.data.decode()
 
 
 def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
     rv = client.get(f"/test?height={MAX_IMAGE_SIZE + 1}")
     assert rv.status_code == 400
-    assert "must not exceed" in rv.data.decode()
+    assert "超えない" in rv.data.decode()
 
 
 # Text position tests
@@ -509,7 +510,7 @@ def test_backgroundimage_size_limit_content_length(client: FlaskClient) -> None:
     mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
-        assert rv.status_code == 400
+        assert rv.status_code == 503
 
 
 def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
@@ -522,4 +523,4 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
     mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
-        assert rv.status_code == 400
+        assert rv.status_code == 503

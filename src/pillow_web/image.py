@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -10,7 +11,10 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+from pillow_web.exceptions import BackgroundImageError, ValidationError
 from pillow_web.validation import is_private_ip
+
+logger = logging.getLogger(__name__)
 
 MAX_IMAGE_SIZE = 4096
 MAX_BACKGROUND_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -112,7 +116,7 @@ def _resolve_position(
         position = position.lower().replace("_", "-")
         if position not in POSITION_MAP:
             valid = ", ".join(sorted(POSITION_MAP))
-            raise ValueError(f"無効なpositionです: {position}. 有効な値: {valid}")
+            raise ValidationError(f"無効なpositionです: {position}. 有効な値: {valid}")
         anchor, _, _ = POSITION_MAP[position]
 
     if position == "top-left":
@@ -202,22 +206,25 @@ def generate_image(
                 if sock is not None:
                     peer_ip = sock.getpeername()[0]
                     if is_private_ip(peer_ip):
-                        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
+                        raise ValidationError("プライベートネットワークへのリクエストは許可されていません")
                 content_length = response.headers.get("Content-Length")
                 if content_length and int(content_length) > MAX_BACKGROUND_IMAGE_SIZE:
-                    raise ValueError("背景画像のサイズが大きすぎます（最大10 MB）")
+                    raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
                 data = b""
                 for chunk in response.iter_content(chunk_size=8192):
                     data += chunk
                     if len(data) > MAX_BACKGROUND_IMAGE_SIZE:
-                        raise ValueError("背景画像のサイズが大きすぎます（最大10 MB）")
+                        raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
                 _set_cached_background_image(background_image_url, data)
                 image = Image.open(BytesIO(data)).convert(mode)
                 image = image.resize((width, height))
-            except ValueError:
+            except ValidationError:
+                raise
+            except BackgroundImageError:
                 raise
             except (OSError, requests.exceptions.RequestException) as e:
-                raise ValueError(f"背景画像の読み込みに失敗しました: {e}") from e
+                logger.error("背景画像の取得に失敗: url=%s, error=%s", background_image_url, e)
+                raise BackgroundImageError(f"背景画像の読み込みに失敗しました: {e}") from e
     else:
         if mode == "RGBA" and color == "transparent":
             color = (0, 0, 0, 0)
