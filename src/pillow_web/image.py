@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from pillow_web.exceptions import BackgroundImageError, ValidationError
 from pillow_web.validation import validate_background_image_url
@@ -97,6 +97,87 @@ POSITION_MAP = {
     "bottom-center": ("md", 0, 0),
     "bottom-right": ("rd", 0, 0),
 }
+
+
+VALID_FILTERS = frozenset(
+    {
+        "blur",
+        "sepia",
+        "grayscale",
+        "brightness",
+        "contour",
+        "emboss",
+        "sharpen",
+        "smooth",
+        "edge_enhance",
+    }
+)
+
+FILTER_DEFAULT_STRENGTH: dict[str, float] = {
+    "blur": 5.0,
+    "brightness": 1.5,
+    "sepia": 1.0,
+}
+
+
+def _apply_sepia(image: Image.Image, strength: float = 1.0) -> Image.Image:
+    if image.mode == "RGBA":
+        alpha = image.split()[3]
+        rgb = image.convert("RGB")
+    else:
+        rgb = image
+
+    gray = rgb.convert("L")
+    g = gray.point(lambda i: int(i * 0.88))
+    b = gray.point(lambda i: int(i * 0.54))
+    sepia = Image.merge("RGB", (gray, g, b))
+
+    blend_ratio = min(strength, 1.0)
+    sepia = Image.blend(rgb, sepia, blend_ratio)
+
+    if image.mode == "RGBA":
+        sepia = Image.merge("RGBA", (*sepia.split(), alpha))
+
+    return sepia
+
+
+def apply_filter(
+    image: Image.Image,
+    filter_type: str | None,
+    filter_strength: float | None = None,
+) -> Image.Image:
+    if filter_type is None:
+        return image
+
+    if filter_type == "blur":
+        radius = filter_strength if filter_strength is not None else FILTER_DEFAULT_STRENGTH["blur"]
+        return image.filter(ImageFilter.GaussianBlur(radius=radius))
+    elif filter_type == "grayscale":
+        if image.mode == "RGBA":
+            alpha = image.split()[3]
+            gray = image.convert("L").convert("RGB")
+            result = Image.merge("RGBA", (*gray.split(), alpha))
+            return result
+        return image.convert("L").convert(image.mode)
+    elif filter_type == "sepia":
+        s = filter_strength if filter_strength is not None else FILTER_DEFAULT_STRENGTH["sepia"]
+        return _apply_sepia(image, s)
+    elif filter_type == "brightness":
+        factor = filter_strength if filter_strength is not None else FILTER_DEFAULT_STRENGTH["brightness"]
+        enhancer = ImageEnhance.Brightness(image)
+        return enhancer.enhance(factor)
+    elif filter_type == "contour":
+        return image.filter(ImageFilter.CONTOUR)
+    elif filter_type == "emboss":
+        return image.filter(ImageFilter.EMBOSS)
+    elif filter_type == "sharpen":
+        return image.filter(ImageFilter.SHARPEN)
+    elif filter_type == "smooth":
+        return image.filter(ImageFilter.SMOOTH)
+    elif filter_type == "edge_enhance":
+        return image.filter(ImageFilter.EDGE_ENHANCE)
+    else:
+        raise ValidationError(f"無効なフィルターです: {filter_type}")
 
 
 def _resolve_position(
@@ -193,6 +274,8 @@ def generate_image(
     position: str | None = None,
     offset_x: int = 0,
     offset_y: int = 0,
+    filter_type: str | None = None,
+    filter_strength: float | None = None,
 ) -> Image.Image:
     if background_image_url:
         cached = _get_cached_background_image(background_image_url, mode, width, height)
@@ -243,6 +326,8 @@ def generate_image(
 
     draw = ImageDraw.Draw(image)
     draw.text((pos_x, pos_y), text, fill=fill, font=font, anchor=anchor, align=align, spacing=spacing)
+
+    image = apply_filter(image, filter_type, filter_strength)
 
     return image
 

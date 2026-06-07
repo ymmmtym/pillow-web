@@ -578,3 +578,136 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 503
+
+
+# Filter tests
+
+
+def test_filter_blur(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=5")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_filter_blur_default_strength(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur")
+    assert rv.status_code == 200
+
+
+def test_filter_grayscale(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=grayscale")
+    assert rv.status_code == 200
+
+
+def test_filter_sepia(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=sepia")
+    assert rv.status_code == 200
+
+
+def test_filter_sepia_with_strength(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=sepia&filter_strength=0.5")
+    assert rv.status_code == 200
+
+
+def test_filter_brightness(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=brightness&filter_strength=1.2")
+    assert rv.status_code == 200
+
+
+def test_filter_brightness_default_strength(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=brightness")
+    assert rv.status_code == 200
+
+
+def test_filter_contour(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=contour")
+    assert rv.status_code == 200
+
+
+def test_filter_emboss(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=emboss")
+    assert rv.status_code == 200
+
+
+def test_filter_sharpen(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=sharpen")
+    assert rv.status_code == 200
+
+
+def test_filter_smooth(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=smooth")
+    assert rv.status_code == 200
+
+
+def test_filter_edge_enhance(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=edge_enhance")
+    assert rv.status_code == 200
+
+
+def test_filter_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=invalid")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=abc")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_non_positive(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=0")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_inf(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=inf")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_nan(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=nan")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_without_filter(client: FlaskClient) -> None:
+    rv = client.get("/test?filter_strength=5")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_with_non_strength_filter(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=contour&filter_strength=5")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=-1")
+    assert rv.status_code == 400
+
+
+def test_filter_sepia_strength_above_one(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=sepia&filter_strength=5")
+    assert rv.status_code == 200
+
+
+def test_filter_strength_exceeds_max(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=999999")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_at_max(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=10000")
+    assert rv.status_code == 200
+
+
+def test_filter_grayscale_preserves_dimensions(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=grayscale&width=100&height=50")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.size == (100, 50)
+
+
+def test_filter_grayscale_with_rgba(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=grayscale&mode=RGBA&color=transparent")
+    assert rv.status_code == 200
+    img = Image.open(BytesIO(rv.data))
+    assert img.mode == "RGBA"

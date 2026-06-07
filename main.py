@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 
 from flask import Flask, Response, request, send_file
@@ -8,8 +9,11 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from pillow_web.exceptions import BackgroundImageError, PillowWebError, ValidationError
-from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, generate_image, save_image
+from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, VALID_FILTERS, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
+
+FILTERS_WITH_STRENGTH = frozenset({"blur", "brightness", "sepia"})
+FILTER_STRENGTH_MAX = 10000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -79,6 +83,8 @@ def hello() -> str:
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
             <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg, webp, avif)。</li>
             <li><code>quality</code> (整数, デフォルト: 70): 出力画像の品質 (1〜100)。JPEG/WebP/AVIF形式で有効。</li>
+            <li><code>filter</code> (文字列): 画像に適用するフィルター効果 (blur, sepia, grayscale, brightness, contour, emboss, sharpen, smooth, edge_enhance)。</li>
+            <li><code>filter_strength</code> (数値): フィルターの強度。blurの場合は半径、brightnessの場合は倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます）。</li>
         </ul>
 
         <h2>例</h2>
@@ -88,6 +94,9 @@ def hello() -> str:
             <li><a href="{base_url}Large_Font?font_size=150"><code>{base_url}Large_Font?font_size=150</code></a></li>
             <li><a href="{base_url}Transparent_Background?mode=RGBA&color=transparent"><code>{base_url}Transparent_Background?mode=RGBA&color=transparent</code></a></li>
             <li><a href="{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg"><code>{base_url}With_Image_Background?backgroundimage=https://p.しのびー.jp/le4Tog.jpg</code></a></li>
+            <li><a href="{base_url}Blur_Effect?filter=blur&filter_strength=8"><code>{base_url}Blur_Effect?filter=blur&filter_strength=8</code></a></li>
+            <li><a href="{base_url}Sepia_Effect?filter=sepia"><code>{base_url}Sepia_Effect?filter=sepia</code></a></li>
+            <li><a href="{base_url}Grayscale_Effect?filter=grayscale"><code>{base_url}Grayscale_Effect?filter=grayscale</code></a></li>
         </ul>
     </body>
     </html>
@@ -190,6 +199,28 @@ def images(text: str) -> Response | tuple[str, int]:
             except ValidationError as e:
                 return str(e), 400
 
+        filter_type: str | None = request.args.get("filter")
+        if filter_type is not None:
+            filter_type = filter_type.lower()
+            if filter_type not in VALID_FILTERS:
+                valid = ", ".join(sorted(VALID_FILTERS))
+                raise ValidationError(f"filterには {valid} のいずれかを指定してください")
+
+        filter_strength_param: str | None = request.args.get("filter_strength")
+        filter_strength: float | None = None
+        if filter_strength_param is not None:
+            if filter_type is None or filter_type not in FILTERS_WITH_STRENGTH:
+                valid = ", ".join(sorted(FILTERS_WITH_STRENGTH))
+                raise ValidationError(f"filter_strengthは {valid} フィルターでのみ使用できます")
+            try:
+                filter_strength = float(filter_strength_param)
+            except ValueError:
+                raise ValidationError("filter_strengthには数値を指定してください")
+            if not math.isfinite(filter_strength) or filter_strength <= 0:
+                raise ValidationError("filter_strengthは0より大きい有限の値を指定してください")
+            if filter_strength > FILTER_STRENGTH_MAX:
+                raise ValidationError(f"filter_strengthは{FILTER_STRENGTH_MAX}以下の値を指定してください")
+
         image = generate_image(
             text,
             width,
@@ -206,6 +237,8 @@ def images(text: str) -> Response | tuple[str, int]:
             position=position,
             offset_x=offset_x,
             offset_y=offset_y,
+            filter_type=filter_type,
+            filter_strength=filter_strength,
         )
 
         image_io, mimetype = save_image(image, format=format_param, quality=quality)
