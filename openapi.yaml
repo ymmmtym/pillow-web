@@ -157,6 +157,54 @@ paths:
             format: float
             exclusiveMinimum: 0
             maximum: 10000
+        - name: qr
+          in: query
+          description: QRコードにエンコードする文字列。指定すると画像内にQRコードが埋め込まれます。
+          schema:
+            type: string
+        - name: qr_size
+          in: query
+          description: QRコードのモジュールサイズ（ピクセル）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: qr_error_correction
+          in: query
+          description: QRコードの誤り訂正レベル
+          schema:
+            type: string
+            enum: [L, M, Q, H]
+            default: M
+        - name: qr_position
+          in: query
+          description: QRコードの配置位置
+          schema:
+            type: string
+            enum: [top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right]
+        - name: qr_x
+          in: query
+          description: QRコードのX座標（ピクセル）
+          schema:
+            type: integer
+        - name: qr_y
+          in: query
+          description: QRコードのY座標（ピクセル）
+          schema:
+            type: integer
+        - name: qr_offset_x
+          in: query
+          description: QRコードのX方向オフセット（ピクセル）
+          schema:
+            type: integer
+            default: 0
+        - name: qr_offset_y
+          in: query
+          description: QRコードのY方向オフセット（ピクセル）
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: 生成された画像ファイル

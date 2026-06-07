@@ -26,6 +26,8 @@ DEFAULT_FILL = "white"
 DEFAULT_ALIGN = "center"
 DEFAULT_SPACING = 4
 DEFAULT_FONT_SIZE = 120
+DEFAULT_QR_SIZE = 10
+DEFAULT_QR_ERROR_CORRECTION = "M"
 
 
 app = Flask(__name__)
@@ -85,6 +87,12 @@ def hello() -> str:
             <li><code>quality</code> (整数, デフォルト: 70): 出力画像の品質 (1〜100)。JPEG/WebP/AVIF形式で有効。</li>
             <li><code>filter</code> (文字列): 画像に適用するフィルター効果 (blur, sepia, grayscale, brightness, contour, emboss, sharpen, smooth, edge_enhance)。</li>
             <li><code>filter_strength</code> (数値): フィルターの強度。blurの場合は半径、brightnessの場合は倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます）。</li>
+            <li><code>qr</code> (文字列): QRコードにエンコードする文字列。</li>
+            <li><code>qr_size</code> (整数, デフォルト: 10): QRコードのモジュールサイズ。</li>
+            <li><code>qr_error_correction</code> (文字列, デフォルト: M): QRコードの誤り訂正レベル (L, M, Q, H)。</li>
+            <li><code>qr_position</code> (文字列): QRコードの配置位置。</li>
+            <li><code>qr_x</code>, <code>qr_y</code> (整数): QRコードの座標。</li>
+            <li><code>qr_offset_x</code>, <code>qr_offset_y</code> (整数, デフォルト: 0): QRコードのオフセット。</li>
         </ul>
 
         <h2>例</h2>
@@ -97,6 +105,7 @@ def hello() -> str:
             <li><a href="{base_url}Blur_Effect?filter=blur&filter_strength=8"><code>{base_url}Blur_Effect?filter=blur&filter_strength=8</code></a></li>
             <li><a href="{base_url}Sepia_Effect?filter=sepia"><code>{base_url}Sepia_Effect?filter=sepia</code></a></li>
             <li><a href="{base_url}Grayscale_Effect?filter=grayscale"><code>{base_url}Grayscale_Effect?filter=grayscale</code></a></li>
+            <li><a href="{base_url}QR_Code_Example?qr=https://example.com&qr_position=bottom-right"><code>{base_url}QR_Code_Example?qr=https://example.com&amp;qr_position=bottom-right</code></a></li>
         </ul>
     </body>
     </html>
@@ -221,6 +230,29 @@ def images(text: str) -> Response | tuple[str, int]:
             if filter_strength > FILTER_STRENGTH_MAX:
                 raise ValidationError(f"filter_strengthは{FILTER_STRENGTH_MAX}以下の値を指定してください")
 
+        qr_content: str | None = request.args.get("qr")
+        if qr_content is not None and qr_content == "":
+            raise ValidationError("qrには空文字列以外を指定してください")
+        qr_position = request.args.get("qr_position")
+        qr_x_param = request.args.get("qr_x")
+        qr_y_param = request.args.get("qr_y")
+        try:
+            qr_size = int(request.args.get("qr_size", DEFAULT_QR_SIZE))
+            qr_offset_x = int(request.args.get("qr_offset_x", 0))
+            qr_offset_y = int(request.args.get("qr_offset_y", 0))
+            qr_x = int(qr_x_param) if qr_x_param is not None else None
+            qr_y = int(qr_y_param) if qr_y_param is not None else None
+        except ValueError:
+            raise ValidationError("qr_size, qr_offset_x, qr_offset_y, qr_x, qr_yには整数を指定してください")
+        qr_error_correction: str = request.args.get("qr_error_correction", DEFAULT_QR_ERROR_CORRECTION)
+
+        if qr_size <= 0:
+            raise ValidationError("qr_sizeは0より大きい値を指定してください")
+        if qr_size > QR_MAX_BOX_SIZE:
+            raise ValidationError(f"qr_sizeは{QR_MAX_BOX_SIZE}を超えない値を指定してください")
+
+        if qr_error_correction not in ("L", "M", "Q", "H"):
+            raise ValidationError("qr_error_correctionは L, M, Q, H のいずれかを指定してください")
         image = generate_image(
             text,
             width,
@@ -239,6 +271,14 @@ def images(text: str) -> Response | tuple[str, int]:
             offset_y=offset_y,
             filter_type=filter_type,
             filter_strength=filter_strength,
+            qr=qr_content,
+            qr_size=qr_size,
+            qr_error_correction=qr_error_correction,
+            qr_position=qr_position,
+            qr_x=qr_x,
+            qr_y=qr_y,
+            qr_offset_x=qr_offset_x,
+            qr_offset_y=qr_offset_y,
         )
 
         image_io, mimetype = save_image(image, format=format_param, quality=quality)
