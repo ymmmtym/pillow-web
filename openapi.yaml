@@ -105,8 +105,16 @@ paths:
           description: 出力画像のフォーマット
           schema:
             type: string
-            enum: [png, jpg, jpeg]
+            enum: [png, jpg, jpeg, webp, avif]
             default: png
+        - name: quality
+          in: query
+          description: 出力画像の品質（1〜100）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 70
         - name: x
           in: query
           description: テキストのX座標（ピクセル）。指定しない場合は中央配置。positionより優先されます。
@@ -144,6 +152,14 @@ paths:
                 type: string
                 format: binary
             image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/avif:
               schema:
                 type: string
                 format: binary

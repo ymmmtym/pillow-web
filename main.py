@@ -7,7 +7,7 @@ from flask import Flask, Response, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
+from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -76,7 +76,8 @@ def hello() -> str:
             <li><code>spacing</code> (整数, デフォルト: 4): テキストの行間のスペース。</li>
             <li><code>font_size</code> (整数, デフォルト: 120): テキストのフォントサイズ。</li>
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
-            <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg)。</li>
+            <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg, webp, avif)。</li>
+            <li><code>quality</code> (整数, デフォルト: 70): 出力画像の品質 (1〜100)。JPEG/WebP/AVIF形式で有効。</li>
         </ul>
 
         <h2>例</h2>
@@ -162,8 +163,13 @@ def images(text: str) -> Response | tuple[str, int]:
             return "mode must be one of: RGB, RGBA", 400
 
         format_param: str = request.args.get("format", "png").lower()
-        if format_param not in ("png", "jpg", "jpeg"):
+        if format_param not in ("png", "jpg", "jpeg", "webp", "avif"):
             return "Unsupported format", 400
+
+        quality_param = request.args.get("quality")
+        quality = int(quality_param) if quality_param is not None else DEFAULT_QUALITY
+        if quality < 1 or quality > 100:
+            return "quality must be between 1 and 100", 400
 
         if background_image_url:
             try:
@@ -189,7 +195,7 @@ def images(text: str) -> Response | tuple[str, int]:
             offset_y=offset_y,
         )
 
-        image_io, mimetype = save_image(image, format=format_param)
+        image_io, mimetype = save_image(image, format=format_param, quality=quality)
 
         return send_file(image_io, mimetype=mimetype)
     except ValueError as e:

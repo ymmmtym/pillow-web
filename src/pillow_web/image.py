@@ -241,17 +241,21 @@ def generate_image(
     return image
 
 
+_FORMAT_MAP: dict[str, tuple[str, str]] = {
+    "png": ("PNG", "image/png"),
+    "jpg": ("JPEG", "image/jpeg"),
+    "jpeg": ("JPEG", "image/jpeg"),
+    "webp": ("WEBP", "image/webp"),
+    "avif": ("AVIF", "image/avif"),
+}
+
+
 def save_image(
     image: Image.Image,
     format: str = "png",
     quality: int = DEFAULT_QUALITY,
 ) -> tuple[BytesIO, str]:
-    if format in ("jpg", "jpeg"):
-        save_format = "JPEG"
-        mimetype = "image/jpeg"
-    else:
-        save_format = "PNG"
-        mimetype = "image/png"
+    save_format, mimetype = _FORMAT_MAP.get(format, ("PNG", "image/png"))
 
     if save_format == "JPEG" and image.mode in ("RGBA", "P"):
         image = image.convert("RGB")
