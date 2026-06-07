@@ -133,8 +133,8 @@ def _apply_sepia(image: Image.Image, strength: float = 1.0) -> Image.Image:
     b = gray.point(lambda i: int(i * 0.54))
     sepia = Image.merge("RGB", (r, g, b))
 
-    if strength < 1.0:
-        sepia = Image.blend(rgb, sepia, strength)
+    blend_ratio = min(strength, 1.0)
+    sepia = Image.blend(rgb, sepia, blend_ratio)
 
     if image.mode == "RGBA":
         sepia = Image.merge("RGBA", (*sepia.split(), alpha))

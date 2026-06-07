@@ -659,6 +659,36 @@ def test_filter_strength_non_positive(client: FlaskClient) -> None:
     assert rv.status_code == 400
 
 
+def test_filter_strength_inf(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=inf")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_nan(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=nan")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_without_filter(client: FlaskClient) -> None:
+    rv = client.get("/test?filter_strength=5")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_with_non_strength_filter(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=contour&filter_strength=5")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=-1")
+    assert rv.status_code == 400
+
+
+def test_filter_sepia_strength_above_one(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=sepia&filter_strength=5")
+    assert rv.status_code == 200
+
+
 def test_filter_grayscale_preserves_dimensions(client: FlaskClient) -> None:
     rv = client.get("/test?filter=grayscale&width=100&height=50")
     assert rv.status_code == 200

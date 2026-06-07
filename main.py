@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 
 from flask import Flask, Response, request, send_file
@@ -10,6 +11,8 @@ from flask_limiter.util import get_remote_address
 from pillow_web.exceptions import BackgroundImageError, PillowWebError, ValidationError
 from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, VALID_FILTERS, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
+
+FILTERS_WITH_STRENGTH = frozenset({"blur", "brightness", "sepia"})
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -205,12 +208,15 @@ def images(text: str) -> Response | tuple[str, int]:
         filter_strength_param: str | None = request.args.get("filter_strength")
         filter_strength: float | None = None
         if filter_strength_param is not None:
+            if filter_type is None or filter_type not in FILTERS_WITH_STRENGTH:
+                valid = ", ".join(sorted(FILTERS_WITH_STRENGTH))
+                raise ValidationError(f"filter_strengthは {valid} フィルターでのみ使用できます")
             try:
                 filter_strength = float(filter_strength_param)
             except ValueError:
                 raise ValidationError("filter_strengthには数値を指定してください")
-            if filter_strength <= 0:
-                raise ValidationError("filter_strengthは0より大きい値を指定してください")
+            if not math.isfinite(filter_strength) or filter_strength <= 0:
+                raise ValidationError("filter_strengthは0より大きい有限の値を指定してください")
 
         image = generate_image(
             text,
