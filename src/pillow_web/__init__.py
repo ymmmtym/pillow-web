@@ -1,3 +1,4 @@
+from .exceptions import BackgroundImageError, PillowWebError, ValidationError
 from .image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, clear_cache, generate_image, save_image
 from .validation import is_private_ip, validate_background_image_url
 
@@ -9,4 +10,7 @@ __all__ = [
     "clear_cache",
     "MAX_IMAGE_SIZE",
     "DEFAULT_QUALITY",
+    "PillowWebError",
+    "ValidationError",
+    "BackgroundImageError",
 ]

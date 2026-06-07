@@ -4,6 +4,8 @@ import ipaddress
 import socket
 from urllib.parse import ParseResult, urlparse
 
+from pillow_web.exceptions import ValidationError
+
 
 def is_private_ip(host: str) -> bool:
     try:
@@ -25,8 +27,8 @@ def is_private_ip(host: str) -> bool:
 def validate_background_image_url(url: str) -> None:
     parsed: ParseResult = urlparse(url)
     if parsed.scheme not in ("http", "https"):
-        raise ValueError("httpもしくはhttpsのURLのみ許可されています")
+        raise ValidationError("httpもしくはhttpsのURLのみ許可されています")
     if not parsed.hostname:
-        raise ValueError("URLにホスト名が含まれていません")
+        raise ValidationError("URLにホスト名が含まれていません")
     if is_private_ip(parsed.hostname):
-        raise ValueError("プライベートネットワークへのリクエストは許可されていません")
+        raise ValidationError("プライベートネットワークへのリクエストは許可されていません")
