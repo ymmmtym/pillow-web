@@ -230,6 +230,13 @@ paths:
               schema:
                 type: string
               example: width must be greater than 0
+        "503":
+          description: 背景画像の読み込みに失敗（外部リソースが利用不可）
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: 背景画像の読み込みに失敗しました
         "500":
           description: サーバー内部エラー
           content:
