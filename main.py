@@ -13,11 +13,6 @@ from pillow_web.validation import validate_background_image_url
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-__all__ = [
-    "app",
-    "MAX_IMAGE_SIZE",
-]
-
 DEFAULT_WIDTH = 600
 DEFAULT_HEIGHT = 200
 DEFAULT_MODE = "RGB"
