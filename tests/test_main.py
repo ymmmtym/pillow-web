@@ -446,6 +446,75 @@ def test_image_jpg_format_valid(client: FlaskClient) -> None:
     assert img.format == "JPEG"
 
 
+def test_image_webp_format_valid(client: FlaskClient) -> None:
+    rv = client.get("/test?format=webp")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/webp"
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "WEBP"
+
+
+def test_image_avif_format_valid(client: FlaskClient) -> None:
+    rv = client.get("/test?format=avif")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/avif"
+    img = Image.open(BytesIO(rv.data))
+    assert img.format == "AVIF"
+
+
+def test_image_webp_with_quality(client: FlaskClient) -> None:
+    rv = client.get("/test?format=webp&quality=90")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/webp"
+
+
+def test_image_avif_with_quality(client: FlaskClient) -> None:
+    rv = client.get("/test?format=avif&quality=50")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/avif"
+
+
+def test_quality_default(client: FlaskClient) -> None:
+    rv = client.get("/test?format=jpg")
+    assert rv.status_code == 200
+
+
+def test_quality_explicit(client: FlaskClient) -> None:
+    rv = client.get("/test?format=jpg&quality=80")
+    assert rv.status_code == 200
+
+
+def test_quality_too_low(client: FlaskClient) -> None:
+    rv = client.get("/test?quality=0")
+    assert rv.status_code == 400
+
+
+def test_quality_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?quality=-1")
+    assert rv.status_code == 400
+
+
+def test_quality_too_high(client: FlaskClient) -> None:
+    rv = client.get("/test?quality=101")
+    assert rv.status_code == 400
+
+
+def test_quality_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/test?quality=abc")
+    assert rv.status_code == 400
+
+
+def test_unsupported_format_webp_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?format=gif")
+    assert rv.status_code == 400
+
+
+def test_webp_with_rgba(client: FlaskClient) -> None:
+    rv = client.get("/test?format=webp&mode=RGBA&color=transparent")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/webp"
+
+
 def test_image_rgba_transparent(client: FlaskClient) -> None:
     rv = client.get("/test?mode=RGBA&color=transparent")
     assert rv.status_code == 200
