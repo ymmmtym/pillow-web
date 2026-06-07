@@ -128,10 +128,9 @@ def _apply_sepia(image: Image.Image, strength: float = 1.0) -> Image.Image:
         rgb = image
 
     gray = rgb.convert("L")
-    r = gray
     g = gray.point(lambda i: int(i * 0.88))
     b = gray.point(lambda i: int(i * 0.54))
-    sepia = Image.merge("RGB", (r, g, b))
+    sepia = Image.merge("RGB", (gray, g, b))
 
     blend_ratio = min(strength, 1.0)
     sepia = Image.blend(rgb, sepia, blend_ratio)

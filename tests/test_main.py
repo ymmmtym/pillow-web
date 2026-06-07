@@ -689,6 +689,16 @@ def test_filter_sepia_strength_above_one(client: FlaskClient) -> None:
     assert rv.status_code == 200
 
 
+def test_filter_strength_exceeds_max(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=999999")
+    assert rv.status_code == 400
+
+
+def test_filter_strength_at_max(client: FlaskClient) -> None:
+    rv = client.get("/test?filter=blur&filter_strength=10000")
+    assert rv.status_code == 200
+
+
 def test_filter_grayscale_preserves_dimensions(client: FlaskClient) -> None:
     rv = client.get("/test?filter=grayscale&width=100&height=50")
     assert rv.status_code == 200

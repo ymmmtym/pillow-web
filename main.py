@@ -13,6 +13,7 @@ from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, VALID_FILTERS, gen
 from pillow_web.validation import validate_background_image_url
 
 FILTERS_WITH_STRENGTH = frozenset({"blur", "brightness", "sepia"})
+FILTER_STRENGTH_MAX = 10000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -217,6 +218,8 @@ def images(text: str) -> Response | tuple[str, int]:
                 raise ValidationError("filter_strengthには数値を指定してください")
             if not math.isfinite(filter_strength) or filter_strength <= 0:
                 raise ValidationError("filter_strengthは0より大きい有限の値を指定してください")
+            if filter_strength > FILTER_STRENGTH_MAX:
+                raise ValidationError(f"filter_strengthは{FILTER_STRENGTH_MAX}以下の値を指定してください")
 
         image = generate_image(
             text,

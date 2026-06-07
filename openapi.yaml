@@ -154,7 +154,9 @@ paths:
           description: フィルターの強度（blurの場合は半径、brightnessの場合は倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます））。デフォルトはフィルターごとに異なります。
           schema:
             type: number
+            format: float
             exclusiveMinimum: 0
+            maximum: 10000
       responses:
         "200":
           description: 生成された画像ファイル
