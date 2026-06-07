@@ -107,6 +107,34 @@ paths:
             type: string
             enum: [png, jpg, jpeg]
             default: png
+        - name: x
+          in: query
+          description: テキストのX座標（ピクセル）。指定しない場合は中央配置。positionより優先されます。
+          schema:
+            type: integer
+        - name: y
+          in: query
+          description: テキストのY座標（ピクセル）。指定しない場合は中央配置。positionより優先されます。
+          schema:
+            type: integer
+        - name: position
+          in: query
+          description: テキストの配置位置
+          schema:
+            type: string
+            enum: [top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right]
+        - name: offset_x
+          in: query
+          description: X方向の相対オフセット（ピクセル）
+          schema:
+            type: integer
+            default: 0
+        - name: offset_y
+          in: query
+          description: Y方向の相対オフセット（ピクセル）
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: 生成された画像ファイル

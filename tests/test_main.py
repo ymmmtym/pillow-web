@@ -164,6 +164,8 @@ def test_backgroundimage_success(client: FlaskClient) -> None:
 
     mock_response = MagicMock()
     mock_response.content = content
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = [content]
     mock_response.raise_for_status.return_value = None
     mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
 
@@ -230,119 +232,119 @@ def test_height_exceeds_max_with_message(client: FlaskClient) -> None:
 # Text position tests
 
 
-def test_position_top_left(client):
+def test_position_top_left(client: FlaskClient) -> None:
     rv = client.get("/test?position=top-left")
     assert rv.status_code == 200
 
 
-def test_position_top_center(client):
+def test_position_top_center(client: FlaskClient) -> None:
     rv = client.get("/test?position=top-center")
     assert rv.status_code == 200
 
 
-def test_position_top_right(client):
+def test_position_top_right(client: FlaskClient) -> None:
     rv = client.get("/test?position=top-right")
     assert rv.status_code == 200
 
 
-def test_position_center_left(client):
+def test_position_center_left(client: FlaskClient) -> None:
     rv = client.get("/test?position=center-left")
     assert rv.status_code == 200
 
 
-def test_position_center(client):
+def test_position_center(client: FlaskClient) -> None:
     rv = client.get("/test?position=center")
     assert rv.status_code == 200
 
 
-def test_position_center_right(client):
+def test_position_center_right(client: FlaskClient) -> None:
     rv = client.get("/test?position=center-right")
     assert rv.status_code == 200
 
 
-def test_position_bottom_left(client):
+def test_position_bottom_left(client: FlaskClient) -> None:
     rv = client.get("/test?position=bottom-left")
     assert rv.status_code == 200
 
 
-def test_position_bottom_center(client):
+def test_position_bottom_center(client: FlaskClient) -> None:
     rv = client.get("/test?position=bottom-center")
     assert rv.status_code == 200
 
 
-def test_position_bottom_right(client):
+def test_position_bottom_right(client: FlaskClient) -> None:
     rv = client.get("/test?position=bottom-right")
     assert rv.status_code == 200
 
 
-def test_position_underscore_variant(client):
+def test_position_underscore_variant(client: FlaskClient) -> None:
     rv = client.get("/test?position=bottom_right")
     assert rv.status_code == 200
 
 
-def test_position_invalid(client):
+def test_position_invalid(client: FlaskClient) -> None:
     rv = client.get("/test?position=invalid-position")
     assert rv.status_code == 400
 
 
-def test_xy_coordinates(client):
+def test_xy_coordinates(client: FlaskClient) -> None:
     rv = client.get("/test?x=100&y=50")
     assert rv.status_code == 200
 
 
-def test_x_only(client):
+def test_x_only(client: FlaskClient) -> None:
     rv = client.get("/test?x=100")
     assert rv.status_code == 200
 
 
-def test_y_only(client):
+def test_y_only(client: FlaskClient) -> None:
     rv = client.get("/test?y=50")
     assert rv.status_code == 200
 
 
-def test_xy_non_numeric(client):
+def test_xy_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?x=abc")
     assert rv.status_code == 400
 
 
-def test_offset_xy(client):
+def test_offset_xy(client: FlaskClient) -> None:
     rv = client.get("/test?offset_x=10&offset_y=20")
     assert rv.status_code == 200
 
 
-def test_position_with_offset(client):
+def test_position_with_offset(client: FlaskClient) -> None:
     rv = client.get("/test?position=bottom-right&offset_x=-10&offset_y=-10")
     assert rv.status_code == 200
 
 
-def test_xy_with_offset(client):
+def test_xy_with_offset(client: FlaskClient) -> None:
     rv = client.get("/test?x=200&y=100&offset_x=5&offset_y=5")
     assert rv.status_code == 200
 
 
-def test_offset_x_non_numeric(client):
+def test_offset_x_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?offset_x=abc")
     assert rv.status_code == 400
 
 
-def test_offset_y_non_numeric(client):
+def test_offset_y_non_numeric(client: FlaskClient) -> None:
     rv = client.get("/test?offset_y=abc")
     assert rv.status_code == 400
 
 
-def test_japanese_text(client):
+def test_japanese_text(client: FlaskClient) -> None:
     rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E")  # /日本語
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
 
 
-def test_japanese_text_with_custom_size(client):
+def test_japanese_text_with_custom_size(client: FlaskClient) -> None:
     rv = client.get("/%E6%97%A5%E6%9C%AC%E8%AA%9E?width=400&height=150&font_size=30")
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
 
 
-def test_japanese_text_fallback_handles_error(client):
+def test_japanese_text_fallback_handles_error(client: FlaskClient) -> None:
     from pillow_web.image import _load_font
 
     with (
@@ -354,7 +356,7 @@ def test_japanese_text_fallback_handles_error(client):
         assert rv.status_code == 200
 
 
-def test_font_path_validation_rejects_path_traversal():
+def test_font_path_validation_rejects_path_traversal() -> None:
     from pillow_web.image import _validate_font_path
 
     # Valid paths
@@ -449,7 +451,9 @@ def test_image_rgba_transparent(client: FlaskClient) -> None:
     img = Image.open(BytesIO(rv.data))
     assert img.mode == "RGBA"
     # Top-left corner should be fully transparent
-    assert img.getpixel((0, 0))[3] == 0
+    pixel = img.getpixel((0, 0))
+    assert isinstance(pixel, tuple)
+    assert pixel[3] == 0
 
 
 def test_text_alignment_left(client: FlaskClient) -> None:
@@ -502,6 +506,7 @@ def test_backgroundimage_size_limit_content_length(client: FlaskClient) -> None:
     mock_response.headers = {"Content-Length": f"{11 * 1024 * 1024}"}
     mock_response.iter_content.return_value = [b"x" * 11 * 1024 * 1024]
     mock_response.__enter__.return_value = mock_response
+    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400
@@ -514,6 +519,7 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
     mock_response.headers = {}
     mock_response.iter_content.return_value = [b"x" * (11 * 1024 * 1024)]
     mock_response.__enter__.return_value = mock_response
+    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
         rv = client.get("/test?backgroundimage=http://example.com/img.png")
         assert rv.status_code == 400

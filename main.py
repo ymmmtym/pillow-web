@@ -22,6 +22,7 @@ DEFAULT_ALIGN = "center"
 DEFAULT_SPACING = 4
 DEFAULT_FONT_SIZE = 120
 
+
 app = Flask(__name__)
 limiter = Limiter(
     app=app,
@@ -117,7 +118,7 @@ def swagger_docs() -> str:
 
 
 @app.route("/openapi.yaml")
-def openapi_spec():
+def openapi_spec() -> Response:
     return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
 
 
@@ -159,14 +160,6 @@ def images(text: str) -> Response | tuple[str, int]:
             return "align must be one of: left, center, right", 400
         if mode not in ("RGB", "RGBA"):
             return "mode must be one of: RGB, RGBA", 400
-
-        x_param = request.args.get("x")
-        y_param = request.args.get("y")
-        position = request.args.get("position")
-        offset_x = int(request.args.get("offset_x", 0))
-        offset_y = int(request.args.get("offset_y", 0))
-        x = int(x_param) if x_param is not None else None
-        y = int(y_param) if y_param is not None else None
 
         if background_image_url:
             try:
