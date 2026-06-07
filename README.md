@@ -45,6 +45,8 @@
 *   **`position`** (文字列, オプション): テキストの配置位置。`top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` のいずれか。
 *   **`offset_x`** (整数, デフォルト: 0): X方向の相対オフセット（ピクセル）。
 *   **`offset_y`** (整数, デフォルト: 0): Y方向の相対オフセット（ピクセル）。
+*   **`filter`** (文字列, オプション): 画像に適用するフィルター効果。`blur`, `sepia`, `grayscale`, `brightness`, `contour`, `emboss`, `sharpen`, `smooth`, `edge_enhance` のいずれか。
+*   **`filter_strength`** (数値, オプション): フィルターの強度。blurの場合はぼかし半径、brightnessの場合は明度倍率、sepiaの場合はブレンド率（0〜1）。デフォルトはフィルターごとに異なります。
 
 ### 使用例
 
