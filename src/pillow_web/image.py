@@ -115,7 +115,8 @@ def _generate_qr_code(
     )
     qr.add_data(content)
     qr.make(fit=True)
-    return qr.make_image(fill_color="black", back_color="white").convert("RGBA")
+    img: Image.Image = qr.make_image(fill_color="black", back_color="white")
+    return img.convert("RGBA")
 
 
 def _resolve_qr_position(
