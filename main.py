@@ -7,6 +7,7 @@ from flask import Flask, Response, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from pillow_web.exceptions import BackgroundImageError, PillowWebError, ValidationError
 from pillow_web.image import MAX_IMAGE_SIZE, generate_image, save_image
 from pillow_web.validation import validate_background_image_url
 
@@ -126,49 +127,58 @@ def openapi_spec() -> Response:
 def images(text: str) -> Response | tuple[str, int]:
     logger.info("Request from %s: /%s args=%s", request.remote_addr, text, request.args)
     try:
-        width = int(request.args.get("width", DEFAULT_WIDTH))
-        height = int(request.args.get("height", DEFAULT_HEIGHT))
+        try:
+            width = int(request.args.get("width", DEFAULT_WIDTH))
+            height = int(request.args.get("height", DEFAULT_HEIGHT))
+        except ValueError:
+            raise ValidationError("widthおよびheightには整数を指定してください")
         if width <= 0:
-            return "width must be greater than 0", 400
+            raise ValidationError("widthは0より大きい値を指定してください")
         if width > MAX_IMAGE_SIZE:
-            return f"width must not exceed {MAX_IMAGE_SIZE}", 400
+            raise ValidationError(f"widthは{MAX_IMAGE_SIZE}を超えない値を指定してください")
         if height <= 0:
-            return "height must be greater than 0", 400
+            raise ValidationError("heightは0より大きい値を指定してください")
         if height > MAX_IMAGE_SIZE:
-            return f"height must not exceed {MAX_IMAGE_SIZE}", 400
+            raise ValidationError(f"heightは{MAX_IMAGE_SIZE}を超えない値を指定してください")
 
         mode: str = request.args.get("mode", DEFAULT_MODE)
         color_spec: str = request.args.get("color", DEFAULT_COLOR)
         fill: str = request.args.get("fill", DEFAULT_FILL)
         align: str = request.args.get("align", DEFAULT_ALIGN)
-        spacing = int(request.args.get("spacing", DEFAULT_SPACING))
-        font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
+        try:
+            spacing = int(request.args.get("spacing", DEFAULT_SPACING))
+            font_size = int(request.args.get("font_size", DEFAULT_FONT_SIZE))
+        except ValueError:
+            raise ValidationError("spacingおよびfont_sizeには整数を指定してください")
         background_image_url: str | None = request.args.get("backgroundimage")
         x_param = request.args.get("x")
         y_param = request.args.get("y")
         position = request.args.get("position")
-        offset_x = int(request.args.get("offset_x", 0))
-        offset_y = int(request.args.get("offset_y", 0))
-        x = int(x_param) if x_param is not None else None
-        y = int(y_param) if y_param is not None else None
+        try:
+            offset_x = int(request.args.get("offset_x", 0))
+            offset_y = int(request.args.get("offset_y", 0))
+            x = int(x_param) if x_param is not None else None
+            y = int(y_param) if y_param is not None else None
+        except ValueError:
+            raise ValidationError("x, y, offset_x, offset_yには整数を指定してください")
 
         if font_size <= 0:
-            return "font_size must be greater than 0", 400
+            raise ValidationError("font_sizeは0より大きい値を指定してください")
         if spacing < 0:
-            return "spacing must not be negative", 400
+            raise ValidationError("spacingに負の値は指定できません")
         if align not in ("left", "center", "right"):
-            return "align must be one of: left, center, right", 400
+            raise ValidationError("alignは left, center, right のいずれかを指定してください")
         if mode not in ("RGB", "RGBA"):
-            return "mode must be one of: RGB, RGBA", 400
+            raise ValidationError("modeは RGB または RGBA を指定してください")
 
         format_param: str = request.args.get("format", "png").lower()
         if format_param not in ("png", "jpg", "jpeg"):
-            return "Unsupported format", 400
+            raise ValidationError("formatは png, jpg, jpeg のいずれかを指定してください")
 
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
-            except ValueError as e:
+            except ValidationError as e:
                 return str(e), 400
 
         image = generate_image(
@@ -192,9 +202,17 @@ def images(text: str) -> Response | tuple[str, int]:
         image_io, mimetype = save_image(image, format=format_param)
 
         return send_file(image_io, mimetype=mimetype)
-    except ValueError as e:
-        return f"エラーが発生しました: {e}", 400
+    except ValidationError as e:
+        logger.warning("バリデーションエラー: %s", e)
+        return str(e), 400
+    except BackgroundImageError as e:
+        logger.error("背景画像エラー: %s", e)
+        return str(e), 503
+    except PillowWebError as e:
+        logger.error("pillow-webエラー: %s", e)
+        return str(e), 400
     except Exception as e:
+        logger.critical("予期せぬエラー: %s", e, exc_info=True)
         return f"予期せぬエラーが発生しました: {e}", 500
 
 
