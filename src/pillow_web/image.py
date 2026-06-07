@@ -99,17 +99,19 @@ POSITION_MAP = {
 }
 
 
-VALID_FILTERS = frozenset({
-    "blur",
-    "sepia",
-    "grayscale",
-    "brightness",
-    "contour",
-    "emboss",
-    "sharpen",
-    "smooth",
-    "edge_enhance",
-})
+VALID_FILTERS = frozenset(
+    {
+        "blur",
+        "sepia",
+        "grayscale",
+        "brightness",
+        "contour",
+        "emboss",
+        "sharpen",
+        "smooth",
+        "edge_enhance",
+    }
+)
 
 FILTER_DEFAULT_STRENGTH: dict[str, float] = {
     "blur": 5.0,
