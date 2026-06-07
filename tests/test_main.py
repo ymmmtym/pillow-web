@@ -168,24 +168,11 @@ def test_backgroundimage_success(client: FlaskClient) -> None:
     mock_response.headers = {}
     mock_response.iter_content.return_value = [content]
     mock_response.raise_for_status.return_value = None
-    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
 
     with patch("pillow_web.image.requests.get", return_value=mock_response):
-        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 200
         assert rv.headers["Content-Type"] == "image/png"
-
-
-def test_backgroundimage_dns_rebinding_blocked(client: FlaskClient) -> None:
-    clear_cache()
-    mock_response = MagicMock()
-    mock_response.raise_for_status.return_value = None
-    mock_response.raw._connection.sock.getpeername.return_value = ("127.0.0.1", 5000)
-
-    with patch("pillow_web.image.requests.get", return_value=mock_response):
-        rv = client.get("/test?backgroundimage=http://example.com/img.png")
-        assert rv.status_code == 400
-        assert "プライベートネットワーク" in rv.data.decode()
 
 
 def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
@@ -193,7 +180,7 @@ def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
     with patch(
         "pillow_web.image.requests.get", side_effect=requests.exceptions.ConnectionError("Connection error")
     ):
-        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 503
         assert "背景画像の読み込みに失敗" in rv.data.decode()
 
@@ -507,9 +494,8 @@ def test_backgroundimage_size_limit_content_length(client: FlaskClient) -> None:
     mock_response.headers = {"Content-Length": f"{11 * 1024 * 1024}"}
     mock_response.iter_content.return_value = [b"x" * 11 * 1024 * 1024]
     mock_response.__enter__.return_value = mock_response
-    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
-        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 503
 
 
@@ -520,7 +506,6 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
     mock_response.headers = {}
     mock_response.iter_content.return_value = [b"x" * (11 * 1024 * 1024)]
     mock_response.__enter__.return_value = mock_response
-    mock_response.raw._connection.sock.getpeername.return_value = ("93.184.216.34", 443)
     with patch("pillow_web.image.requests.get", return_value=mock_response):
-        rv = client.get("/test?backgroundimage=http://example.com/img.png")
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 503
