@@ -12,7 +12,7 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 
 from pillow_web.exceptions import BackgroundImageError, ValidationError
-from pillow_web.validation import is_private_ip
+from pillow_web.validation import validate_background_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -200,13 +200,12 @@ def generate_image(
             image = cached
         else:
             try:
-                response = requests.get(background_image_url, timeout=BACKGROUND_IMAGE_TIMEOUT)
+                validate_background_image_url(background_image_url)
+                response = requests.get(
+                    background_image_url,
+                    timeout=BACKGROUND_IMAGE_TIMEOUT,
+                )
                 response.raise_for_status()
-                sock = response.raw._connection.sock
-                if sock is not None:
-                    peer_ip = sock.getpeername()[0]
-                    if is_private_ip(peer_ip):
-                        raise ValidationError("プライベートネットワークへのリクエストは許可されていません")
                 content_length = response.headers.get("Content-Length")
                 if content_length and int(content_length) > MAX_BACKGROUND_IMAGE_SIZE:
                     raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
