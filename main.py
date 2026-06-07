@@ -214,6 +214,8 @@ def images(text: str) -> Response | tuple[str, int]:
         stroke_color: str = request.args.get("stroke_color", "black")
         gradient_from: str | None = request.args.get("gradient_from")
         gradient_to: str | None = request.args.get("gradient_to")
+        if (gradient_from is not None) != (gradient_to is not None):
+            raise ValidationError("gradient_fromとgradient_toは両方指定する必要があります")
         rotation_param = request.args.get("rotation")
         try:
             rotation = float(rotation_param) if rotation_param is not None else 0
