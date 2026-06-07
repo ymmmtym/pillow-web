@@ -83,6 +83,14 @@ def hello() -> str:
             <li><code>backgroundimage</code> (URL): 背景として使用する画像のURL。</li>
             <li><code>format</code> (文字列, デフォルト: png): 出力画像のフォーマット (png, jpg, jpeg, webp, avif)。</li>
             <li><code>quality</code> (整数, デフォルト: 70): 出力画像の品質 (1〜100)。JPEG/WebP/AVIF形式で有効。</li>
+            <li><code>shadow_color</code> (文字列, オプション): テキストの影の色。指定すると影が付きます。</li>
+            <li><code>shadow_offset_x</code> (整数, デフォルト: 3): 影のX方向のオフセット。</li>
+            <li><code>shadow_offset_y</code> (整数, デフォルト: 3): 影のY方向のオフセット。</li>
+            <li><code>stroke_width</code> (整数, デフォルト: 0): テキストの縁取りの太さ。</li>
+            <li><code>stroke_color</code> (文字列, デフォルト: black): テキストの縁取りの色。</li>
+            <li><code>gradient_from</code> (文字列, オプション): グラデーションの開始色。<code>gradient_to</code>と併用。</li>
+            <li><code>gradient_to</code> (文字列, オプション): グラデーションの終了色。<code>gradient_from</code>と併用。</li>
+            <li><code>rotation</code> (数値, デフォルト: 0): テキストの回転角度（度）。</li>
             <li><code>filter</code> (文字列): 画像に適用するフィルター効果 (blur, sepia, grayscale, brightness, contour, emboss, sharpen, smooth, edge_enhance)。</li>
             <li><code>filter_strength</code> (数値): フィルターの強度。blurの場合は半径、brightnessの場合は倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます）。</li>
         </ul>
@@ -193,6 +201,28 @@ def images(text: str) -> Response | tuple[str, int]:
         if quality < 1 or quality > 100:
             raise ValidationError("qualityは 1〜100 の範囲で指定してください")
 
+        shadow_color: str | None = request.args.get("shadow_color")
+        try:
+            shadow_offset_x = int(request.args.get("shadow_offset_x", 3))
+            shadow_offset_y = int(request.args.get("shadow_offset_y", 3))
+        except ValueError:
+            raise ValidationError("shadow_offset_x, shadow_offset_yには整数を指定してください")
+        try:
+            stroke_width = int(request.args.get("stroke_width", 0))
+        except ValueError:
+            raise ValidationError("stroke_widthには整数を指定してください")
+        stroke_color: str = request.args.get("stroke_color", "black")
+        gradient_from: str | None = request.args.get("gradient_from")
+        gradient_to: str | None = request.args.get("gradient_to")
+        rotation_param = request.args.get("rotation")
+        try:
+            rotation = float(rotation_param) if rotation_param is not None else 0
+        except ValueError:
+            raise ValidationError("rotationには数値を指定してください")
+
+        if stroke_width < 0:
+            raise ValidationError("stroke_widthに負の値は指定できません")
+
         if background_image_url:
             try:
                 validate_background_image_url(background_image_url)
@@ -237,6 +267,14 @@ def images(text: str) -> Response | tuple[str, int]:
             position=position,
             offset_x=offset_x,
             offset_y=offset_y,
+            shadow_color=shadow_color,
+            shadow_offset_x=shadow_offset_x,
+            shadow_offset_y=shadow_offset_y,
+            stroke_width=stroke_width,
+            stroke_color=stroke_color,
+            gradient_from=gradient_from,
+            gradient_to=gradient_to,
+            rotation=rotation,
             filter_type=filter_type,
             filter_strength=filter_strength,
         )
