@@ -991,6 +991,28 @@ def test_qr_code_non_numeric_qr_offset_y(client: FlaskClient) -> None:
     assert rv.status_code == 400
 
 
+# Route tests
+
+
+def test_root_route(client: FlaskClient) -> None:
+    rv = client.get("/")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/html; charset=utf-8"
+
+
+def test_docs_route(client: FlaskClient) -> None:
+    rv = client.get("/docs")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert "swagger-ui" in rv.data.decode()
+
+
+def test_openapi_yaml(client: FlaskClient) -> None:
+    rv = client.get("/openapi.yaml")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/yaml; charset=utf-8"
+
+
 # Multi-text layer tests
 
 
