@@ -132,12 +132,13 @@ def _resolve_xy_position(
     y: int | None = None,
     offset_x: int = 0,
     offset_y: int = 0,
+    _normalized: bool = False,
 ) -> tuple[int, int]:
     pos_x = (canvas_w - obj_w) // 2
     pos_y = (canvas_h - obj_h) // 2
 
     if position is not None:
-        p = position.lower().replace("_", "-")
+        p = position if _normalized else position.lower().replace("_", "-")
         if p not in POSITION_MAP:
             valid = ", ".join(sorted(POSITION_MAP))
             raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
@@ -278,20 +279,22 @@ def _resolve_position(
     offset_y: int = 0,
 ) -> tuple[float, float, str]:
     anchor = "mm"
+    np: str | None = None
     if position is not None:
-        p = position.lower().replace("_", "-")
-        if p in POSITION_MAP:
-            anchor, _, _ = POSITION_MAP[p]
+        np = position.lower().replace("_", "-")
+        if np in POSITION_MAP:
+            anchor, _, _ = POSITION_MAP[np]
     pos_x, pos_y = _resolve_xy_position(
         width,
         height,
         0,
         0,
-        position=position,
+        position=np,
         x=x,
         y=y,
         offset_x=offset_x,
         offset_y=offset_y,
+        _normalized=True,
     )
     return float(pos_x), float(pos_y), anchor
 
