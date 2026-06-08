@@ -419,8 +419,6 @@ def generate_image(
     draw = ImageDraw.Draw(image)
     draw.text((pos_x, pos_y), text, fill=fill, font=font, anchor=anchor, align=align, spacing=spacing)
 
-    image = apply_filter(image, filter_type, filter_strength)
-
     if qr:
         qr_image = _generate_qr_code(qr, box_size=qr_size, error_correction=qr_error_correction)
         paste_x, paste_y = _resolve_qr_position(
@@ -439,6 +437,8 @@ def generate_image(
         if image.mode != "RGBA":
             image = image.convert("RGBA")
         image.paste(qr_image, (paste_x, paste_y), qr_image)
+
+    image = apply_filter(image, filter_type, filter_strength)
     return image
 
 
