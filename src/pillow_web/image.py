@@ -422,8 +422,6 @@ def generate_image(
     image = apply_filter(image, filter_type, filter_strength)
 
     if qr:
-        if qr_size > QR_MAX_BOX_SIZE:
-            raise ValidationError(f"qr_sizeは{QR_MAX_BOX_SIZE}を超えない値を指定してください")
         qr_image = _generate_qr_code(qr, box_size=qr_size, error_correction=qr_error_correction)
         paste_x, paste_y = _resolve_qr_position(
             width,
