@@ -169,7 +169,7 @@ def _resolve_xy_position(
     pos_x += offset_x
     pos_y += offset_y
 
-    return int(pos_x), int(pos_y)
+    return pos_x, pos_y
 
 
 POSITION_MAP = {
@@ -183,6 +183,8 @@ POSITION_MAP = {
     "bottom-center": ("md", 0, 0),
     "bottom-right": ("rd", 0, 0),
 }
+# Keys serve as valid position identifiers (used by _resolve_xy_position).
+# Values provide the text-anchor tuple used by _resolve_position.
 
 
 VALID_FILTERS = frozenset(
@@ -278,10 +280,8 @@ def _resolve_position(
     anchor = "mm"
     if position is not None:
         p = position.lower().replace("_", "-")
-        if p not in POSITION_MAP:
-            valid = ", ".join(sorted(POSITION_MAP))
-            raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
-        anchor, _, _ = POSITION_MAP[p]
+        if p in POSITION_MAP:
+            anchor, _, _ = POSITION_MAP[p]
     pos_x, pos_y = _resolve_xy_position(
         width,
         height,
