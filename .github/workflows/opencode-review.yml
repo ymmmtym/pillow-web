@@ -27,7 +27,23 @@ jobs:
           model: opencode/big-pickle
           use_github_token: true
           prompt: |
-            Review this pull request:
-            - Check for code quality issues
-            - Look for potential bugs
-            - Suggest improvements
+            Review this pull request. After your review, write a result file
+            to /tmp/review-result.json using a shell command:
+            {"has_failures": false, "summary": "No issues found"}
+
+            Set has_failures=true only for critical bugs or security vulnerabilities.
+
+      - name: Check review result
+        if: ${{ !endsWith(github.actor, '[bot]') }}
+        shell: bash
+        run: |
+          if [ ! -f /tmp/review-result.json ]; then
+            echo "::warning title=AI Review::No review result file. Skipping check."
+            exit 0
+          fi
+          HAS_FAILURES=$(python3 -c "import json; d=json.load(open('/tmp/review-result.json')); print(d['has_failures']); print('::notice title=AI Review Summary::'+d['summary'])")
+          echo "$HAS_FAILURES"
+          if [ "$HAS_FAILURES" = "True" ]; then
+            echo "::error title=AI Review::AI review found critical issues"
+            exit 1
+          fi
