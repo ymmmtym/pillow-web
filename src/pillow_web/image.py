@@ -104,6 +104,8 @@ def _generate_qr_code(
     box_size: int = QR_DEFAULT_BOX_SIZE,
     error_correction: str = QR_DEFAULT_ERROR_CORRECTION,
 ) -> Image.Image:
+    if box_size > QR_MAX_BOX_SIZE:
+        raise ValidationError(f"qr_size must not exceed {QR_MAX_BOX_SIZE}")
     ec_level = _ERROR_CORRECTION_MAP.get(error_correction.upper())
     if ec_level is None:
         valid = ", ".join(sorted(_ERROR_CORRECTION_MAP))
@@ -432,10 +434,10 @@ def generate_image(
             offset_x=qr_offset_x,
             offset_y=qr_offset_y,
         )
-        paste_x = max(0, paste_x)
-        paste_y = max(0, paste_y)
         if qr_image.width > width or qr_image.height > height:
             raise ValidationError("QR code exceeds image dimensions")
+        paste_x = max(0, min(paste_x, width - qr_image.width))
+        paste_y = max(0, min(paste_y, height - qr_image.height))
         if image.mode != "RGBA":
             image = image.convert("RGBA")
         image.paste(qr_image, (paste_x, paste_y), qr_image)
