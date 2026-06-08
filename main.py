@@ -9,7 +9,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from pillow_web.exceptions import BackgroundImageError, PillowWebError, ValidationError
-from pillow_web.image import DEFAULT_QUALITY, MAX_IMAGE_SIZE, QR_MAX_BOX_SIZE, VALID_FILTERS, generate_image, save_image
+from pillow_web.image import (
+    DEFAULT_QUALITY,
+    MAX_IMAGE_SIZE,
+    QR_MAX_BOX_SIZE,
+    VALID_FILTERS,
+    generate_image,
+    save_image,
+)
 from pillow_web.validation import validate_background_image_url
 
 FILTERS_WITH_STRENGTH = frozenset({"blur", "brightness", "sepia"})

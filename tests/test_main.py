@@ -580,7 +580,6 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
         assert rv.status_code == 503
 
 
-
 # Filter tests
 
 
