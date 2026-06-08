@@ -271,8 +271,10 @@ def _apply_gradient_to_layer(layer: Image.Image, gradient_from: str, gradient_to
     strip_rgba = Image.new("RGBA", (1, h))
     px_in = strip_l.load()
     px_out = strip_rgba.load()
+    assert px_in is not None
+    assert px_out is not None
     for y in range(h):
-        t = px_in[0, y] / 255.0
+        t = px_in[0, y] / 255.0  # type: ignore[operator]
         r = int(c1[0] + (c2[0] - c1[0]) * t)
         g = int(c1[1] + (c2[1] - c1[1]) * t)
         b = int(c1[2] + (c2[2] - c1[2]) * t)

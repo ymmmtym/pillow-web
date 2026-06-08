@@ -224,6 +224,10 @@ def images(text: str) -> Response | tuple[str, int]:
 
         if stroke_width < 0:
             raise ValidationError("stroke_widthに負の値は指定できません")
+        if shadow_color is not None and (abs(shadow_offset_x) > width or abs(shadow_offset_y) > height):
+            raise ValidationError(
+                "shadow_offset_x, shadow_offset_yは画像サイズを超えない値を指定してください"
+            )
 
         if background_image_url:
             try:
