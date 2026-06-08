@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from pillow_web.exceptions import BackgroundImageError, ValidationError
 from pillow_web.validation import validate_background_image_url
@@ -258,6 +258,33 @@ def clear_cache() -> None:
         _background_image_cache.clear()
 
 
+def _apply_gradient_to_layer(layer: Image.Image, gradient_from: str, gradient_to: str) -> Image.Image:
+    try:
+        c1 = ImageColor.getrgb(gradient_from)
+        c2 = ImageColor.getrgb(gradient_to)
+    except ValueError as e:
+        raise ValidationError(f"色の指定が無効です: {e}") from e
+    alpha = layer.split()[3]
+    h = layer.height
+
+    strip_l = Image.linear_gradient("L").resize((1, h), Image.Resampling.BILINEAR)
+    strip_rgba = Image.new("RGBA", (1, h))
+    px_in = strip_l.load()
+    px_out = strip_rgba.load()
+    assert px_in is not None
+    assert px_out is not None
+    for y in range(h):
+        t = px_in[0, y] / 255.0  # type: ignore[operator]
+        r = int(c1[0] + (c2[0] - c1[0]) * t)
+        g = int(c1[1] + (c2[1] - c1[1]) * t)
+        b = int(c1[2] + (c2[2] - c1[2]) * t)
+        px_out[0, y] = (r, g, b, 255)
+
+    gradient = strip_rgba.resize((layer.width, h), Image.Resampling.BILINEAR)
+    gradient.putalpha(alpha)
+    return gradient
+
+
 def generate_image(
     text: str,
     width: int,
@@ -274,6 +301,14 @@ def generate_image(
     position: str | None = None,
     offset_x: int = 0,
     offset_y: int = 0,
+    shadow_color: str | None = None,
+    shadow_offset_x: int = 3,
+    shadow_offset_y: int = 3,
+    stroke_width: int = 0,
+    stroke_color: str = "black",
+    gradient_from: str | None = None,
+    gradient_to: str | None = None,
+    rotation: float = 0,
     filter_type: str | None = None,
     filter_strength: float | None = None,
 ) -> Image.Image:
@@ -324,8 +359,107 @@ def generate_image(
         offset_y=offset_y,
     )
 
-    draw = ImageDraw.Draw(image)
-    draw.text((pos_x, pos_y), text, fill=fill, font=font, anchor=anchor, align=align, spacing=spacing)
+    has_gradient = gradient_from is not None and gradient_to is not None
+    if (gradient_from is not None) != (gradient_to is not None):
+        raise ValidationError("gradient_fromとgradient_toは両方指定する必要があります")
+    needs_layer = rotation != 0 or has_gradient
+
+    if needs_layer:
+        text_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(text_layer)
+        try:
+            fill_rgba = ImageColor.getrgb(fill)
+        except ValueError as e:
+            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
+        try:
+            stroke_rgba = ImageColor.getrgb(stroke_color)
+        except ValueError as e:
+            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
+        draw.text(
+            (pos_x, pos_y),
+            text,
+            fill=fill_rgba,
+            font=font,
+            anchor=anchor,
+            align=align,
+            spacing=spacing,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_rgba,
+        )
+
+        if has_gradient:
+            alpha_channel = text_layer.split()[3]
+            if stroke_width > 0:
+                kernel_size = stroke_width * 2 + 1
+                fill_alpha = alpha_channel.filter(ImageFilter.MinFilter(kernel_size))
+            else:
+                fill_alpha = alpha_channel
+            assert gradient_from is not None
+            assert gradient_to is not None
+            gradient_layer = _apply_gradient_to_layer(text_layer, gradient_from, gradient_to)
+            text_layer = Image.composite(gradient_layer, text_layer, fill_alpha)
+
+        if rotation:
+            text_layer = text_layer.rotate(
+                rotation,
+                expand=False,
+                center=(pos_x, pos_y),
+                fillcolor=(0, 0, 0, 0),
+            )
+
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+
+        if shadow_color is not None:
+            shadow_mask = text_layer.split()[3]
+            try:
+                parsed_shadow = ImageColor.getrgb(shadow_color)
+            except ValueError as e:
+                raise ValidationError(f"影の色の指定が無効です: {e}") from e
+            shadow_img = Image.new("RGBA", (width, height), parsed_shadow[:3] + (255,))
+            shadow_img.putalpha(shadow_mask)
+            shadow_offset = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            shadow_offset.paste(shadow_img, (shadow_offset_x, shadow_offset_y), shadow_img)
+            image = Image.alpha_composite(image, shadow_offset)
+
+        image = Image.alpha_composite(image, text_layer)
+    else:
+        draw = ImageDraw.Draw(image)
+        try:
+            fill_rgba = ImageColor.getrgb(fill)
+        except ValueError as e:
+            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
+        try:
+            stroke_rgba = ImageColor.getrgb(stroke_color)
+        except ValueError as e:
+            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
+        if shadow_color is not None:
+            try:
+                shadow_rgba = ImageColor.getrgb(shadow_color)
+            except ValueError as e:
+                raise ValidationError(f"影の色の指定が無効です: {e}") from e
+            draw.text(
+                (pos_x + shadow_offset_x, pos_y + shadow_offset_y),
+                text,
+                fill=shadow_rgba,
+                font=font,
+                anchor=anchor,
+                align=align,
+                spacing=spacing,
+                stroke_width=stroke_width,
+                stroke_fill=shadow_rgba,
+            )
+        draw.text(
+            (pos_x, pos_y),
+            text,
+            fill=fill_rgba,
+            font=font,
+            anchor=anchor,
+            align=align,
+            spacing=spacing,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_rgba,
+        )
 
     image = apply_filter(image, filter_type, filter_strength)
 

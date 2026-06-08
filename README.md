@@ -45,6 +45,14 @@
 *   **`position`** (文字列, オプション): テキストの配置位置。`top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` のいずれか。
 *   **`offset_x`** (整数, デフォルト: 0): X方向の相対オフセット（ピクセル）。
 *   **`offset_y`** (整数, デフォルト: 0): Y方向の相対オフセット（ピクセル）。
+*   **`shadow_color`** (文字列, オプション): テキストの影の色。指定すると影が付きます。
+*   **`shadow_offset_x`** (整数, デフォルト: 3): 影のX方向のオフセット（ピクセル）。
+*   **`shadow_offset_y`** (整数, デフォルト: 3): 影のY方向のオフセット（ピクセル）。
+*   **`stroke_width`** (整数, デフォルト: 0): テキストの縁取りの太さ（ピクセル）。0で縁取りなし。
+*   **`stroke_color`** (文字列, デフォルト: `black`): テキストの縁取りの色。
+*   **`gradient_from`** (文字列, オプション): グラデーションの開始色。`gradient_to`と併用。
+*   **`gradient_to`** (文字列, オプション): グラデーションの終了色。`gradient_from`と併用。
+*   **`rotation`** (数値, デフォルト: 0): テキストの回転角度（度）。
 *   **`filter`** (文字列, オプション): 画像に適用するフィルター効果。`blur`, `sepia`, `grayscale`, `brightness`, `contour`, `emboss`, `sharpen`, `smooth`, `edge_enhance` のいずれか。
 *   **`filter_strength`** (数値, オプション): フィルターの強度。blurの場合はぼかし半径、brightnessの場合は明度倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます）。デフォルトはフィルターごとに異なります。
 
@@ -60,6 +68,10 @@
     *(`https://example.com/your_image.jpg` を実際の画像のURLに置き換えてください。)*
 *   **テキスト位置指定:** `http://127.0.0.1:5000/Bottom_Right?position=bottom-right&offset_x=-10&offset_y=-10`
 *   **ピクセル指定:** `http://127.0.0.1:5000/Exact_Position?x=50&y=50`
+*   **テキストに影:** `http://127.0.0.1:5000/Shadow_Text?shadow_color=gray&shadow_offset_x=5&shadow_offset_y=5`
+*   **テキストに縁取り:** `http://127.0.0.1:5000/Stroked_Text?stroke_width=3&stroke_color=blue`
+*   **グラデーション文字:** `http://127.0.0.1:5000/Gradient_Text?gradient_from=red&gradient_to=blue`
+*   **回転テキスト:** `http://127.0.0.1:5000/Rotated_Text?rotation=45`
 
 
 

@@ -580,6 +580,178 @@ def test_backgroundimage_size_limit_stream(client: FlaskClient) -> None:
         assert rv.status_code == 503
 
 
+# Text effects tests
+
+
+def test_shadow_color(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_shadow_with_offset(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=5&shadow_offset_y=5")
+    assert rv.status_code == 200
+
+
+def test_shadow_offset_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=abc")
+    assert rv.status_code == 400
+
+
+def test_stroke_width(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=3")
+    assert rv.status_code == 200
+
+
+def test_stroke_with_color(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=3&stroke_color=red")
+    assert rv.status_code == 200
+
+
+def test_stroke_width_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=abc")
+    assert rv.status_code == 400
+
+
+def test_stroke_width_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=-1")
+    assert rv.status_code == 400
+
+
+def test_gradient_text(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=red&gradient_to=blue")
+    assert rv.status_code == 200
+
+
+def test_gradient_only_from(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=red")
+    assert rv.status_code == 400
+
+
+def test_gradient_only_to(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_to=blue")
+    assert rv.status_code == 400
+
+
+def test_rotation(client: FlaskClient) -> None:
+    rv = client.get("/test?rotation=45")
+    assert rv.status_code == 200
+
+
+def test_rotation_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?rotation=-10")
+    assert rv.status_code == 200
+
+
+def test_rotation_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/test?rotation=abc")
+    assert rv.status_code == 400
+
+
+def test_effects_combo_shadow_stroke(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&stroke_width=2&stroke_color=red")
+    assert rv.status_code == 200
+
+
+def test_effects_combo_gradient_rotation(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=yellow&gradient_to=green&rotation=30")
+    assert rv.status_code == 200
+
+
+def test_shadow_with_rgba(client: FlaskClient) -> None:
+    rv = client.get("/test?mode=RGBA&color=transparent&shadow_color=gray")
+    assert rv.status_code == 200
+
+
+def test_gradient_with_stroke(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=red&gradient_to=blue&stroke_width=2&stroke_color=black")
+    assert rv.status_code == 200
+
+
+def test_rotation_with_shadow(client: FlaskClient) -> None:
+    rv = client.get("/test?rotation=15&shadow_color=gray")
+    assert rv.status_code == 200
+
+
+def test_shadow_color_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=notacolor")
+    assert rv.status_code == 400
+
+
+def test_stroke_color_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=3&stroke_color=nonexistent")
+    assert rv.status_code == 400
+
+
+def test_gradient_from_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=xyz&gradient_to=blue")
+    assert rv.status_code == 400
+
+
+def test_gradient_to_invalid(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=red&gradient_to=notacolor")
+    assert rv.status_code == 400
+
+
+def test_shadow_offset_negative(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=-5&shadow_offset_y=-5")
+    assert rv.status_code == 200
+
+
+def test_rotation_with_position(client: FlaskClient) -> None:
+    rv = client.get("/test?rotation=45&position=bottom-right")
+    assert rv.status_code == 200
+
+
+def test_all_effects_combined(client: FlaskClient) -> None:
+    rv = client.get(
+        "/test?shadow_color=gray&stroke_width=2&stroke_color=red"
+        "&gradient_from=yellow&gradient_to=green&rotation=30"
+    )
+    assert rv.status_code == 200
+
+
+def test_shadow_with_alpha_hex_color(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=%2300000080")
+    assert rv.status_code == 200
+
+
+def test_gradient_with_alpha_hex_colors(client: FlaskClient) -> None:
+    rv = client.get("/test?gradient_from=%23FF000080&gradient_to=%230000FF80")
+    assert rv.status_code == 200
+
+
+def test_stroke_color_invalid_via_layer_path(client: FlaskClient) -> None:
+    rv = client.get("/test?stroke_width=3&stroke_color=invalid&rotation=10")
+    assert rv.status_code == 400
+
+
+def test_shadow_offset_exceeds_width(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=9999")
+    assert rv.status_code == 400
+
+
+def test_shadow_offset_exceeds_height(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_y=9999")
+    assert rv.status_code == 400
+
+
+def test_shadow_offset_negative_exceeds_width(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=-9999")
+    assert rv.status_code == 400
+
+
+def test_shadow_offset_at_boundary(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=600&shadow_offset_y=200")
+    assert rv.status_code == 200
+
+
+def test_shadow_offset_negative_boundary(client: FlaskClient) -> None:
+    rv = client.get("/test?shadow_color=gray&shadow_offset_x=-600&shadow_offset_y=-200")
+    assert rv.status_code == 200
+
+
 # Filter tests
 
 

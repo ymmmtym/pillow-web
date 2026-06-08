@@ -143,6 +143,52 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: shadow_color
+          in: query
+          description: テキストの影の色。指定すると影が付きます。
+          schema:
+            type: string
+        - name: shadow_offset_x
+          in: query
+          description: 影のX方向のオフセット（ピクセル）
+          schema:
+            type: integer
+            default: 3
+        - name: shadow_offset_y
+          in: query
+          description: 影のY方向のオフセット（ピクセル）
+          schema:
+            type: integer
+            default: 3
+        - name: stroke_width
+          in: query
+          description: テキストの縁取りの太さ（ピクセル）。0で縁取りなし。
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: stroke_color
+          in: query
+          description: テキストの縁取りの色
+          schema:
+            type: string
+            default: black
+        - name: gradient_from
+          in: query
+          description: グラデーションの開始色。gradient_toと併用。
+          schema:
+            type: string
+        - name: gradient_to
+          in: query
+          description: グラデーションの終了色。gradient_fromと併用。
+          schema:
+            type: string
+        - name: rotation
+          in: query
+          description: テキストの回転角度（度）
+          schema:
+            type: number
+            default: 0
         - name: filter
           in: query
           description: 画像に適用するフィルター効果
@@ -184,6 +230,13 @@ paths:
               schema:
                 type: string
               example: width must be greater than 0
+        "503":
+          description: 背景画像の読み込みに失敗（外部リソースが利用不可）
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: 背景画像の読み込みに失敗しました
         "500":
           description: サーバー内部エラー
           content:
