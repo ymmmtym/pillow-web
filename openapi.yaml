@@ -31,6 +31,10 @@ paths:
       description: |
         指定されたテキストを画像として生成します。
         クエリパラメータでサイズ、色、フォント、背景などをカスタマイズできます。
+
+        複数のテキストを重ねて描画することもできます（`text2`, `text3`, ...）。
+        追加テキストには個別のスタイルパラメータを指定可能です（例: `fill2`, `font_size2`, `position2`, `rotation2`）。
+        レイヤーは前方のテキストほど後面に描画されます。
       parameters:
         - name: text
           in: path
@@ -251,6 +255,41 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: text2
+          in: query
+          description: 2つ目のテキスト。text3, text4, ... と増やせます。
+          schema:
+            type: string
+        - name: fill2
+          in: query
+          description: 2つ目のテキストの色（fill3, fill4, ... と増やせます）
+          schema:
+            type: string
+        - name: font_size2
+          in: query
+          description: 2つ目のテキストのフォントサイズ
+          schema:
+            type: integer
+        - name: position2
+          in: query
+          description: 2つ目のテキストの配置位置
+          schema:
+            type: string
+        - name: rotation2
+          in: query
+          description: 2つ目のテキストの回転角度（度）
+          schema:
+            type: number
+        - name: x2
+          in: query
+          description: 2つ目のテキストのX座標
+          schema:
+            type: integer
+        - name: y2
+          in: query
+          description: 2つ目のテキストのY座標
+          schema:
+            type: integer
       responses:
         "200":
           description: 生成された画像ファイル
