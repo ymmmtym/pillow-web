@@ -106,7 +106,7 @@ def _generate_qr_code(
 ) -> Image.Image:
     if box_size > QR_MAX_BOX_SIZE:
         raise ValidationError(f"qr_size must not exceed {QR_MAX_BOX_SIZE}")
-    ec_level = _ERROR_CORRECTION_MAP.get(error_correction.upper())
+    ec_level = _ERROR_CORRECTION_MAP.get(error_correction)
     if ec_level is None:
         valid = ", ".join(sorted(_ERROR_CORRECTION_MAP))
         raise ValidationError(f"無効なerror_correctionです: {error_correction}. 有効な値: {valid}")
@@ -122,44 +122,44 @@ def _generate_qr_code(
     return img.convert("RGBA")
 
 
-def _resolve_qr_position(
-    width: int,
-    height: int,
-    qr_width: int,
-    qr_height: int,
+def _resolve_xy_position(
+    canvas_w: int,
+    canvas_h: int,
+    obj_w: int,
+    obj_h: int,
+    position: str | None = None,
     x: int | None = None,
     y: int | None = None,
-    position: str | None = None,
     offset_x: int = 0,
     offset_y: int = 0,
 ) -> tuple[int, int]:
-    pos_x = (width - qr_width) // 2
-    pos_y = (height - qr_height) // 2
+    pos_x = (canvas_w - obj_w) // 2
+    pos_y = (canvas_h - obj_h) // 2
 
     if position is not None:
-        position = position.lower().replace("_", "-")
-        if position not in POSITION_MAP:
+        p = position.lower().replace("_", "-")
+        if p not in POSITION_MAP:
             valid = ", ".join(sorted(POSITION_MAP))
-            raise ValidationError(f"無効なqr_positionです: {position}. 有効な値: {valid}")
+            raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
 
-        if position == "top-left":
+        if p == "top-left":
             pos_x, pos_y = 0, 0
-        elif position == "top-center":
-            pos_x, pos_y = (width - qr_width) // 2, 0
-        elif position == "top-right":
-            pos_x, pos_y = width - qr_width, 0
-        elif position == "center-left":
-            pos_x, pos_y = 0, (height - qr_height) // 2
-        elif position == "center":
-            pos_x, pos_y = (width - qr_width) // 2, (height - qr_height) // 2
-        elif position == "center-right":
-            pos_x, pos_y = width - qr_width, (height - qr_height) // 2
-        elif position == "bottom-left":
-            pos_x, pos_y = 0, height - qr_height
-        elif position == "bottom-center":
-            pos_x, pos_y = (width - qr_width) // 2, height - qr_height
-        elif position == "bottom-right":
-            pos_x, pos_y = width - qr_width, height - qr_height
+        elif p == "top-center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, 0
+        elif p == "top-right":
+            pos_x, pos_y = canvas_w - obj_w, 0
+        elif p == "center-left":
+            pos_x, pos_y = 0, (canvas_h - obj_h) // 2
+        elif p == "center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, (canvas_h - obj_h) // 2
+        elif p == "center-right":
+            pos_x, pos_y = canvas_w - obj_w, (canvas_h - obj_h) // 2
+        elif p == "bottom-left":
+            pos_x, pos_y = 0, canvas_h - obj_h
+        elif p == "bottom-center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, canvas_h - obj_h
+        elif p == "bottom-right":
+            pos_x, pos_y = canvas_w - obj_w, canvas_h - obj_h
 
     if x is not None:
         pos_x = x
@@ -276,44 +276,17 @@ def _resolve_position(
     offset_y: int = 0,
 ) -> tuple[float, float, str]:
     anchor = "mm"
-    pos_x = width / 2
-    pos_y = height / 2
-
     if position is not None:
-        position = position.lower().replace("_", "-")
-        if position not in POSITION_MAP:
+        p = position.lower().replace("_", "-")
+        if p not in POSITION_MAP:
             valid = ", ".join(sorted(POSITION_MAP))
-            raise ValidationError(f"無効なpositionです: {position}. 有効な値: {valid}")
-        anchor, _, _ = POSITION_MAP[position]
-
-    if position == "top-left":
-        pos_x, pos_y = 0, 0
-    elif position == "top-center":
-        pos_x, pos_y = width / 2, 0
-    elif position == "top-right":
-        pos_x, pos_y = width, 0
-    elif position == "center-left":
-        pos_x, pos_y = 0, height / 2
-    elif position == "center":
-        pos_x, pos_y = width / 2, height / 2
-    elif position == "center-right":
-        pos_x, pos_y = width, height / 2
-    elif position == "bottom-left":
-        pos_x, pos_y = 0, height
-    elif position == "bottom-center":
-        pos_x, pos_y = width / 2, height
-    elif position == "bottom-right":
-        pos_x, pos_y = width, height
-
-    if x is not None:
-        pos_x = x
-    if y is not None:
-        pos_y = y
-
-    pos_x += offset_x
-    pos_y += offset_y
-
-    return pos_x, pos_y, anchor
+            raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
+        anchor, _, _ = POSITION_MAP[p]
+    pos_x, pos_y = _resolve_xy_position(
+        width, height, 0, 0,
+        position=position, x=x, y=y, offset_x=offset_x, offset_y=offset_y,
+    )
+    return float(pos_x), float(pos_y), anchor
 
 
 def _get_cached_background_image(url: str, mode: str, width: int, height: int) -> Image.Image | None:
@@ -423,14 +396,14 @@ def generate_image(
 
     if qr:
         qr_image = _generate_qr_code(qr, box_size=qr_size, error_correction=qr_error_correction)
-        paste_x, paste_y = _resolve_qr_position(
+        paste_x, paste_y = _resolve_xy_position(
             width,
             height,
             qr_image.width,
             qr_image.height,
+            position=qr_position,
             x=qr_x,
             y=qr_y,
-            position=qr_position,
             offset_x=qr_offset_x,
             offset_y=qr_offset_y,
         )
