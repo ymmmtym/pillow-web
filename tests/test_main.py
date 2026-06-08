@@ -989,3 +989,22 @@ def test_qr_code_non_numeric_qr_offset_x(client: FlaskClient) -> None:
 def test_qr_code_non_numeric_qr_offset_y(client: FlaskClient) -> None:
     rv = client.get("/test?qr=https://example.com&qr_offset_y=abc")
     assert rv.status_code == 400
+
+
+def test_root_route(client: FlaskClient) -> None:
+    rv = client.get("/")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/html; charset=utf-8"
+
+
+def test_docs_route(client: FlaskClient) -> None:
+    rv = client.get("/docs")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert "swagger-ui" in rv.data.decode()
+
+
+def test_openapi_yaml(client: FlaskClient) -> None:
+    rv = client.get("/openapi.yaml")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "text/yaml; charset=utf-8"
