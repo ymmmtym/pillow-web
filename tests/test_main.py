@@ -989,3 +989,75 @@ def test_qr_code_non_numeric_qr_offset_x(client: FlaskClient) -> None:
 def test_qr_code_non_numeric_qr_offset_y(client: FlaskClient) -> None:
     rv = client.get("/test?qr=https://example.com&qr_offset_y=abc")
     assert rv.status_code == 400
+
+
+# Multi-text layer tests
+
+
+def test_two_text_layers(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_three_text_layers(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&text3=Third")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_text_layer_with_position(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&position2=bottom-right")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_fill(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&fill2=red")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_font_size(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&font_size2=60")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_xy(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&x2=100&y2=50")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_rotation(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&rotation2=45")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_shadow(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&shadow_color2=gray")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_stroke(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&stroke_width2=3&stroke_color2=red")
+    assert rv.status_code == 200
+
+
+def test_text_layer_with_gradient(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&gradient_from2=red&gradient_to2=blue")
+    assert rv.status_code == 200
+
+
+def test_text_layer_non_numeric_font_size(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&font_size2=abc")
+    assert rv.status_code == 400
+
+
+def test_text_layer_non_numeric_rotation(client: FlaskClient) -> None:
+    rv = client.get("/First?text2=Second&rotation2=abc")
+    assert rv.status_code == 400
+
+
+def test_text_layer_all_effects(client: FlaskClient) -> None:
+    rv = client.get(
+        "/First?text2=Second&fill2=red&font_size2=60&position2=bottom-right&rotation2=15&shadow_color2=gray"
+    )
+    assert rv.status_code == 200

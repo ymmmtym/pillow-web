@@ -64,6 +64,26 @@
 *   **`qr_offset_x`** (整数, デフォルト: 0): QRコードのX方向オフセット（ピクセル）。
 *   **`qr_offset_y`** (整数, デフォルト: 0): QRコードのY方向オフセット（ピクセル）。
 
+### 複数テキストレイヤー
+
+`text2`, `text3`, ... クエリパラメータで追加のテキストレイヤーを指定できます。
+各レイヤーは個別にスタイリング可能です。レイヤーは指定順に描画され、後ろのレイヤーが前面に表示されます。
+
+*   **`text2`**, **`text3`**, ... (文字列, オプション): 追加のテキストレイヤーの内容。
+*   **`fill{N}`** (文字列, オプション): テキストレイヤーNの文字色。
+*   **`font_size{N}`** (整数, オプション): テキストレイヤーNのフォントサイズ。
+*   **`align{N}`** (文字列, オプション): テキストレイヤーNの配置。
+*   **`spacing{N}`** (整数, オプション): テキストレイヤーNの行間。
+*   **`x{N}`**, **`y{N}`** (整数, オプション): テキストレイヤーNの座標。
+*   **`position{N}`** (文字列, オプション): テキストレイヤーNの配置位置。
+*   **`offset_x{N}`**, **`offset_y{N}`** (整数, オプション): テキストレイヤーNのオフセット。
+*   **`shadow_color{N}`** (文字列, オプション): テキストレイヤーNの影の色。
+*   **`shadow_offset_x{N}`**, **`shadow_offset_y{N}`** (整数, オプション): テキストレイヤーNの影のオフセット。
+*   **`stroke_width{N}`** (整数, オプション): テキストレイヤーNの縁取りの太さ。
+*   **`stroke_color{N}`** (文字列, オプション): テキストレイヤーNの縁取りの色。
+*   **`gradient_from{N}`**, **`gradient_to{N}`** (文字列, オプション): テキストレイヤーNのグラデーション。
+*   **`rotation{N}`** (数値, オプション): テキストレイヤーNの回転角度。
+
 ### 使用例
 
 ブラウザで以下のURLにアクセスして画像を生成できます。
@@ -81,6 +101,8 @@
 *   **テキストに縁取り:** `http://127.0.0.1:5000/Stroked_Text?stroke_width=3&stroke_color=blue`
 *   **グラデーション文字:** `http://127.0.0.1:5000/Gradient_Text?gradient_from=red&gradient_to=blue`
 *   **回転テキスト:** `http://127.0.0.1:5000/Rotated_Text?rotation=45`
+*   **複数テキストレイヤー:** `http://127.0.0.1:5000/Title?text2=Subtitle&fill2=gray&font_size2=60&position2=bottom-center`
+*   **3レイヤー+個別スタイル:** `http://127.0.0.1:5000/Top?text2=Middle&fill2=blue&position2=center&text3=Bottom&fill3=red&position3=bottom-right`
 
 
 

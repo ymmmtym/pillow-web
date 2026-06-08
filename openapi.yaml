@@ -251,6 +251,67 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: text2
+          in: query
+          description: 追加テキストレイヤー2の内容。text3, text4, ... も同様に指定可能。
+          schema:
+            type: string
+        - name: fill2
+          in: query
+          description: テキストレイヤー2の文字色
+          schema:
+            type: string
+        - name: font_size2
+          in: query
+          description: テキストレイヤー2のフォントサイズ
+          schema:
+            type: integer
+        - name: position2
+          in: query
+          description: テキストレイヤー2の配置位置
+          schema:
+            type: string
+            enum: [top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right]
+        - name: x2
+          in: query
+          description: テキストレイヤー2のX座標
+          schema:
+            type: integer
+        - name: y2
+          in: query
+          description: テキストレイヤー2のY座標
+          schema:
+            type: integer
+        - name: rotation2
+          in: query
+          description: テキストレイヤー2の回転角度
+          schema:
+            type: number
+        - name: shadow_color2
+          in: query
+          description: テキストレイヤー2の影の色
+          schema:
+            type: string
+        - name: stroke_width2
+          in: query
+          description: テキストレイヤー2の縁取りの太さ
+          schema:
+            type: integer
+        - name: stroke_color2
+          in: query
+          description: テキストレイヤー2の縁取りの色
+          schema:
+            type: string
+        - name: gradient_from2
+          in: query
+          description: テキストレイヤー2のグラデーション開始色
+          schema:
+            type: string
+        - name: gradient_to2
+          in: query
+          description: テキストレイヤー2のグラデーション終了色
+          schema:
+            type: string
       responses:
         "200":
           description: 生成された画像ファイル

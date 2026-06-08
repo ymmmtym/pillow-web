@@ -108,6 +108,8 @@ def hello() -> str:
             <li><code>qr_position</code> (文字列): QRコードの配置位置。</li>
             <li><code>qr_x</code>, <code>qr_y</code> (整数): QRコードの座標。</li>
             <li><code>qr_offset_x</code>, <code>qr_offset_y</code> (整数, デフォルト: 0): QRコードのオフセット。</li>
+            <li><code>text{{N}}</code> (文字列, オプション): 追加のテキストレイヤー (例: text2, text3)。</li>
+            <li><code>fill{{N}}</code>, <code>font_size{{N}}</code>, <code>position{{N}}</code>, <code>x{{N}}</code>, <code>y{{N}}</code>, <code>rotation{{N}}</code> 等: 各レイヤーの個別スタイリング。</li>
         </ul>
 
         <h2>例</h2>
@@ -296,6 +298,50 @@ def images(text: str) -> Response | tuple[str, int]:
 
         if qr_error_correction not in ("L", "M", "Q", "H"):
             raise ValidationError("qr_error_correctionは L, M, Q, H のいずれかを指定してください")
+
+        text_layers: list[dict[str, object]] = []
+        for i in range(2, 100):
+            text_n = request.args.get(f"text{i}")
+            if text_n is None:
+                break
+            layer: dict[str, object] = {"text": text_n}
+            text_layers.append(layer)
+            for key in (
+                "fill",
+                "align",
+                "position",
+                "shadow_color",
+                "stroke_color",
+                "gradient_from",
+                "gradient_to",
+            ):
+                val = request.args.get(f"{key}{i}")
+                if val is not None:
+                    layer[key] = val
+            for key in (
+                "font_size",
+                "spacing",
+                "x",
+                "y",
+                "offset_x",
+                "offset_y",
+                "shadow_offset_x",
+                "shadow_offset_y",
+                "stroke_width",
+            ):
+                val = request.args.get(f"{key}{i}")
+                if val is not None:
+                    try:
+                        layer[key] = int(val)
+                    except ValueError:
+                        raise ValidationError(f"text{i}の{key}には整数を指定してください")
+            val = request.args.get(f"rotation{i}")
+            if val is not None:
+                try:
+                    layer["rotation"] = float(val)
+                except ValueError:
+                    raise ValidationError(f"text{i}のrotationには数値を指定してください")
+
         image = generate_image(
             text,
             width,
@@ -330,6 +376,7 @@ def images(text: str) -> Response | tuple[str, int]:
             qr_y=qr_y,
             qr_offset_x=qr_offset_x,
             qr_offset_y=qr_offset_y,
+            text_layers=text_layers,
         )
 
         image_io, mimetype = save_image(image, format=format_param, quality=quality)
