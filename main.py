@@ -334,7 +334,9 @@ def images(text: str) -> Response | tuple[str, int]:
 
         image_io, mimetype = save_image(image, format=format_param, quality=quality)
 
-        return send_file(image_io, mimetype=mimetype)
+        response = send_file(image_io, mimetype=mimetype)
+        response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
     except ValidationError as e:
         logger.warning("バリデーションエラー: %s", e)
         return str(e), 400
