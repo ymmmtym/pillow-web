@@ -14,6 +14,7 @@ from pillow_web.image import (
     MAX_IMAGE_SIZE,
     QR_MAX_BOX_SIZE,
     VALID_FILTERS,
+    TextLayer,
     generate_image,
     save_image,
 )
@@ -110,6 +111,13 @@ def hello() -> str:
             <li><code>qr_offset_x</code>, <code>qr_offset_y</code> (整数, デフォルト: 0): QRコードのオフセット。</li>
         </ul>
 
+        <h3>複数テキストレイヤー</h3>
+        <p><code>text2</code>, <code>text3</code>, ... で追加のテキストを指定できます。各テキストに個別のスタイルを適用可能です（例: <code>fill2</code>, <code>font_size2</code>, <code>position2</code>, <code>rotation2</code>）。</p>
+        <ul>
+            <li><a href="{base_url}Hello?text2=World&fill2=red&position2=bottom-right&font_size2=60"><code>{base_url}Hello?text2=World&amp;fill2=red&amp;position2=bottom-right&amp;font_size2=60</code></a></li>
+            <li><a href="{base_url}Title?text2=Subtitle&font_size2=40&position2=bottom-center&offset_y2=-10"><code>{base_url}Title?text2=Subtitle&amp;font_size2=40&amp;position2=bottom-center&amp;offset_y2=-10</code></a></li>
+        </ul>
+
         <h2>例</h2>
         <ul>
             <li><a href="{base_url}Custom_Size?width=800&height=300"><code>{base_url}Custom_Size?width=800&height=300</code></a></li>
@@ -155,6 +163,81 @@ def swagger_docs() -> str:
 @app.route("/openapi.yaml")
 def openapi_spec() -> Response:
     return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
+
+
+def _parse_extra_text_layers() -> list[TextLayer]:
+    layers: list[TextLayer] = []
+    i = 2
+    while True:
+        text_val = request.args.get(f"text{i}")
+        if text_val is None:
+            break
+        if text_val == "":
+            raise ValidationError(f"text{i}には空文字列以外を指定してください")
+
+        try:
+            font_size = int(request.args.get(f"font_size{i}", DEFAULT_FONT_SIZE))
+            spacing = int(request.args.get(f"spacing{i}", DEFAULT_SPACING))
+            offset_x = int(request.args.get(f"offset_x{i}", 0))
+            offset_y = int(request.args.get(f"offset_y{i}", 0))
+            shadow_offset_x = int(request.args.get(f"shadow_offset_x{i}", 3))
+            shadow_offset_y = int(request.args.get(f"shadow_offset_y{i}", 3))
+            stroke_width = int(request.args.get(f"stroke_width{i}", 0))
+            rotation = float(request.args.get(f"rotation{i}", 0))
+            x_param = request.args.get(f"x{i}")
+            y_param = request.args.get(f"y{i}")
+            x = int(x_param) if x_param is not None else None
+            y = int(y_param) if y_param is not None else None
+        except ValueError:
+            raise ValidationError(
+                f"text{i}関連パラメータの値が不正です: "
+                "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
+                "shadow_offset_y, stroke_width, rotationには数値を指定してください"
+            )
+
+        if font_size <= 0:
+            raise ValidationError(f"text{i}のfont_sizeは0より大きい値を指定してください")
+        if spacing < 0:
+            raise ValidationError(f"text{i}のspacingに負の値は指定できません")
+        if stroke_width < 0:
+            raise ValidationError(f"text{i}のstroke_widthに負の値は指定できません")
+
+        align = request.args.get(f"align{i}", DEFAULT_ALIGN)
+        if align not in ("left", "center", "right"):
+            raise ValidationError(f"text{i}のalignは left, center, right のいずれかを指定してください")
+
+        fill = request.args.get(f"fill{i}", DEFAULT_FILL)
+        shadow_color: str | None = request.args.get(f"shadow_color{i}")
+        stroke_color: str = request.args.get(f"stroke_color{i}", "black")
+        gradient_from: str | None = request.args.get(f"gradient_from{i}")
+        gradient_to: str | None = request.args.get(f"gradient_to{i}")
+        if (gradient_from is not None) != (gradient_to is not None):
+            raise ValidationError(f"text{i}のgradient_fromとgradient_toは両方指定する必要があります")
+
+        layers.append(
+            TextLayer(
+                text=text_val,
+                fill=fill,
+                font_size=font_size,
+                x=x,
+                y=y,
+                position=request.args.get(f"position{i}"),
+                offset_x=offset_x,
+                offset_y=offset_y,
+                rotation=rotation,
+                align=align,
+                spacing=spacing,
+                shadow_color=shadow_color,
+                shadow_offset_x=shadow_offset_x,
+                shadow_offset_y=shadow_offset_y,
+                stroke_width=stroke_width,
+                stroke_color=stroke_color,
+                gradient_from=gradient_from,
+                gradient_to=gradient_to,
+            )
+        )
+        i += 1
+    return layers
 
 
 @app.route("/<text>")
@@ -296,6 +379,8 @@ def images(text: str) -> Response | tuple[str, int]:
 
         if qr_error_correction not in ("L", "M", "Q", "H"):
             raise ValidationError("qr_error_correctionは L, M, Q, H のいずれかを指定してください")
+
+        extra_text_layers = _parse_extra_text_layers()
         image = generate_image(
             text,
             width,
@@ -330,6 +415,7 @@ def images(text: str) -> Response | tuple[str, int]:
             qr_y=qr_y,
             qr_offset_x=qr_offset_x,
             qr_offset_y=qr_offset_y,
+            extra_text_layers=extra_text_layers,
         )
 
         image_io, mimetype = save_image(image, format=format_param, quality=quality)

@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import time
+from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
@@ -14,6 +15,29 @@ from PIL import Image, ImageColor, ImageDraw, ImageEnhance, ImageFilter, ImageFo
 
 from pillow_web.exceptions import BackgroundImageError, ValidationError
 from pillow_web.validation import validate_background_image_url
+
+
+@dataclass
+class TextLayer:
+    text: str
+    fill: str = "white"
+    font_size: int = 120
+    x: int | None = None
+    y: int | None = None
+    position: str | None = None
+    offset_x: int = 0
+    offset_y: int = 0
+    rotation: float = 0
+    align: str = "center"
+    spacing: int = 4
+    shadow_color: str | None = None
+    shadow_offset_x: int = 3
+    shadow_offset_y: int = 3
+    stroke_width: int = 0
+    stroke_color: str = "black"
+    gradient_from: str | None = None
+    gradient_to: str | None = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +378,129 @@ def _apply_gradient_to_layer(layer: Image.Image, gradient_from: str, gradient_to
     return gradient
 
 
+def _draw_text_layer(
+    image: Image.Image,
+    width: int,
+    height: int,
+    layer: TextLayer,
+) -> Image.Image:
+    if not layer.text:
+        return image
+
+    font = _load_font(layer.font_size)
+    pos_x, pos_y, anchor = _resolve_position(
+        width,
+        height,
+        x=layer.x,
+        y=layer.y,
+        position=layer.position,
+        offset_x=layer.offset_x,
+        offset_y=layer.offset_y,
+    )
+
+    has_gradient = layer.gradient_from is not None and layer.gradient_to is not None
+    needs_layer = layer.rotation != 0 or has_gradient
+
+    if needs_layer:
+        text_layer_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(text_layer_img)
+        try:
+            fill_rgba = ImageColor.getrgb(layer.fill)
+        except ValueError as e:
+            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
+        try:
+            stroke_rgba = ImageColor.getrgb(layer.stroke_color)
+        except ValueError as e:
+            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
+        draw.text(
+            (pos_x, pos_y),
+            layer.text,
+            fill=fill_rgba,
+            font=font,
+            anchor=anchor,
+            align=layer.align,
+            spacing=layer.spacing,
+            stroke_width=layer.stroke_width,
+            stroke_fill=stroke_rgba,
+        )
+
+        if has_gradient:
+            alpha_channel = text_layer_img.split()[3]
+            if layer.stroke_width > 0:
+                kernel_size = layer.stroke_width * 2 + 1
+                fill_alpha = alpha_channel.filter(ImageFilter.MinFilter(kernel_size))
+            else:
+                fill_alpha = alpha_channel
+            assert layer.gradient_from is not None
+            assert layer.gradient_to is not None
+            gradient_layer = _apply_gradient_to_layer(text_layer_img, layer.gradient_from, layer.gradient_to)
+            text_layer_img = Image.composite(gradient_layer, text_layer_img, fill_alpha)
+
+        if layer.rotation:
+            text_layer_img = text_layer_img.rotate(
+                layer.rotation,
+                expand=False,
+                center=(pos_x, pos_y),
+                fillcolor=(0, 0, 0, 0),
+            )
+
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+
+        if layer.shadow_color is not None:
+            shadow_mask = text_layer_img.split()[3]
+            try:
+                parsed_shadow = ImageColor.getrgb(layer.shadow_color)
+            except ValueError as e:
+                raise ValidationError(f"影の色の指定が無効です: {e}") from e
+            shadow_img = Image.new("RGBA", (width, height), parsed_shadow[:3] + (255,))
+            shadow_img.putalpha(shadow_mask)
+            shadow_offset = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            shadow_offset.paste(shadow_img, (layer.shadow_offset_x, layer.shadow_offset_y), shadow_img)
+            image = Image.alpha_composite(image, shadow_offset)
+
+        image = Image.alpha_composite(image, text_layer_img)
+    else:
+        draw = ImageDraw.Draw(image)
+        try:
+            fill_rgba = ImageColor.getrgb(layer.fill)
+        except ValueError as e:
+            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
+        try:
+            stroke_rgba = ImageColor.getrgb(layer.stroke_color)
+        except ValueError as e:
+            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
+        if layer.shadow_color is not None:
+            try:
+                shadow_rgba = ImageColor.getrgb(layer.shadow_color)
+            except ValueError as e:
+                raise ValidationError(f"影の色の指定が無効です: {e}") from e
+            draw.text(
+                (pos_x + layer.shadow_offset_x, pos_y + layer.shadow_offset_y),
+                layer.text,
+                fill=shadow_rgba,
+                font=font,
+                anchor=anchor,
+                align=layer.align,
+                spacing=layer.spacing,
+                stroke_width=layer.stroke_width,
+                stroke_fill=shadow_rgba,
+            )
+        draw.text(
+            (pos_x, pos_y),
+            layer.text,
+            fill=fill_rgba,
+            font=font,
+            anchor=anchor,
+            align=layer.align,
+            spacing=layer.spacing,
+            stroke_width=layer.stroke_width,
+            stroke_fill=stroke_rgba,
+        )
+
+    return image
+
+
 def generate_image(
     text: str,
     width: int,
@@ -388,6 +535,7 @@ def generate_image(
     qr_y: int | None = None,
     qr_offset_x: int = 0,
     qr_offset_y: int = 0,
+    extra_text_layers: list[TextLayer] | None = None,
 ) -> Image.Image:
     if background_image_url:
         cached = _get_cached_background_image(background_image_url, mode, width, height)
@@ -424,119 +572,34 @@ def generate_image(
             color = (0, 0, 0, 0)
         image = Image.new(mode, (width, height), color)
 
-    font = _load_font(font_size)
+    if (gradient_from is not None) != (gradient_to is not None):
+        raise ValidationError("gradient_fromとgradient_toは両方指定する必要があります")
 
-    pos_x, pos_y, anchor = _resolve_position(
-        width,
-        height,
+    main_layer = TextLayer(
+        text=text,
+        fill=fill,
+        font_size=font_size,
         x=x,
         y=y,
         position=position,
         offset_x=offset_x,
         offset_y=offset_y,
+        rotation=rotation,
+        align=align,
+        spacing=spacing,
+        shadow_color=shadow_color,
+        shadow_offset_x=shadow_offset_x,
+        shadow_offset_y=shadow_offset_y,
+        stroke_width=stroke_width,
+        stroke_color=stroke_color,
+        gradient_from=gradient_from,
+        gradient_to=gradient_to,
     )
+    image = _draw_text_layer(image, width, height, main_layer)
 
-    has_gradient = gradient_from is not None and gradient_to is not None
-    if (gradient_from is not None) != (gradient_to is not None):
-        raise ValidationError("gradient_fromとgradient_toは両方指定する必要があります")
-    needs_layer = rotation != 0 or has_gradient
-
-    if needs_layer:
-        text_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(text_layer)
-        try:
-            fill_rgba = ImageColor.getrgb(fill)
-        except ValueError as e:
-            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
-        try:
-            stroke_rgba = ImageColor.getrgb(stroke_color)
-        except ValueError as e:
-            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
-        draw.text(
-            (pos_x, pos_y),
-            text,
-            fill=fill_rgba,
-            font=font,
-            anchor=anchor,
-            align=align,
-            spacing=spacing,
-            stroke_width=stroke_width,
-            stroke_fill=stroke_rgba,
-        )
-
-        if has_gradient:
-            alpha_channel = text_layer.split()[3]
-            if stroke_width > 0:
-                kernel_size = stroke_width * 2 + 1
-                fill_alpha = alpha_channel.filter(ImageFilter.MinFilter(kernel_size))
-            else:
-                fill_alpha = alpha_channel
-            assert gradient_from is not None
-            assert gradient_to is not None
-            gradient_layer = _apply_gradient_to_layer(text_layer, gradient_from, gradient_to)
-            text_layer = Image.composite(gradient_layer, text_layer, fill_alpha)
-
-        if rotation:
-            text_layer = text_layer.rotate(
-                rotation,
-                expand=False,
-                center=(pos_x, pos_y),
-                fillcolor=(0, 0, 0, 0),
-            )
-
-        if image.mode != "RGBA":
-            image = image.convert("RGBA")
-
-        if shadow_color is not None:
-            shadow_mask = text_layer.split()[3]
-            try:
-                parsed_shadow = ImageColor.getrgb(shadow_color)
-            except ValueError as e:
-                raise ValidationError(f"影の色の指定が無効です: {e}") from e
-            shadow_img = Image.new("RGBA", (width, height), parsed_shadow[:3] + (255,))
-            shadow_img.putalpha(shadow_mask)
-            shadow_offset = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-            shadow_offset.paste(shadow_img, (shadow_offset_x, shadow_offset_y), shadow_img)
-            image = Image.alpha_composite(image, shadow_offset)
-
-        image = Image.alpha_composite(image, text_layer)
-    else:
-        draw = ImageDraw.Draw(image)
-        try:
-            fill_rgba = ImageColor.getrgb(fill)
-        except ValueError as e:
-            raise ValidationError(f"文字色(fill)の指定が無効です: {e}") from e
-        try:
-            stroke_rgba = ImageColor.getrgb(stroke_color)
-        except ValueError as e:
-            raise ValidationError(f"縁取り色(stroke_color)の指定が無効です: {e}") from e
-        if shadow_color is not None:
-            try:
-                shadow_rgba = ImageColor.getrgb(shadow_color)
-            except ValueError as e:
-                raise ValidationError(f"影の色の指定が無効です: {e}") from e
-            draw.text(
-                (pos_x + shadow_offset_x, pos_y + shadow_offset_y),
-                text,
-                fill=shadow_rgba,
-                font=font,
-                anchor=anchor,
-                align=align,
-                spacing=spacing,
-                stroke_width=stroke_width,
-                stroke_fill=shadow_rgba,
-            )
-        draw.text(
-            (pos_x, pos_y),
-            text,
-            fill=fill_rgba,
-            font=font,
-            anchor=anchor,
-            align=align,
-            spacing=spacing,
-            stroke_width=stroke_width,
-            stroke_fill=stroke_rgba,
-        )
+    if extra_text_layers:
+        for layer in extra_text_layers:
+            image = _draw_text_layer(image, width, height, layer)
 
     if qr:
         qr_image = _generate_qr_code(qr, box_size=qr_size, error_correction=qr_error_correction)

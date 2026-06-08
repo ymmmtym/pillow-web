@@ -989,3 +989,122 @@ def test_qr_code_non_numeric_qr_offset_x(client: FlaskClient) -> None:
 def test_qr_code_non_numeric_qr_offset_y(client: FlaskClient) -> None:
     rv = client.get("/test?qr=https://example.com&qr_offset_y=abc")
     assert rv.status_code == 400
+
+
+# Multi-text layer tests
+
+
+def test_multi_text_basic(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World")
+    assert rv.status_code == 200
+    assert rv.headers["Content-Type"] == "image/png"
+
+
+def test_multi_text_with_fill(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&fill2=red")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_position(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&position2=bottom-right")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_font_size(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&font_size2=60")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_rotation(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&rotation2=45")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_shadow(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&shadow_color2=gray")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_stroke(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&stroke_width2=2&stroke_color2=blue")
+    assert rv.status_code == 200
+
+
+def test_multi_text_with_gradient(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&gradient_from2=red&gradient_to2=blue")
+    assert rv.status_code == 200
+
+
+def test_multi_text_three_layers(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&text3=Again&fill2=red&fill3=blue")
+    assert rv.status_code == 200
+
+
+def test_multi_text_xy(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&x2=50&y2=100")
+    assert rv.status_code == 200
+
+
+def test_multi_text_offset(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&position2=bottom-right&offset_x2=-10&offset_y2=-10")
+    assert rv.status_code == 200
+
+
+def test_multi_text_align(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&align2=right")
+    assert rv.status_code == 200
+
+
+def test_multi_text_spacing(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World%0A%0A&spacing2=20")
+    assert rv.status_code == 200
+
+
+def test_multi_text_empty_text(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_font_size(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&font_size2=-1")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_font_size_non_numeric(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&font_size2=abc")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_align(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&align2=top")
+    assert rv.status_code == 400
+
+
+def test_multi_text_gradient_partial(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&gradient_from2=red")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_stroke_width(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&stroke_width2=-1")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_spacing(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&spacing2=-1")
+    assert rv.status_code == 400
+
+
+def test_multi_text_invalid_x(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&x2=abc")
+    assert rv.status_code == 400
+
+
+def test_multi_text_all_effects(client: FlaskClient) -> None:
+    rv = client.get(
+        "/Hello?text2=World&fill2=red&font_size2=60"
+        "&position2=bottom-right&rotation2=15"
+        "&shadow_color2=gray&stroke_width2=1"
+        "&gradient_from2=yellow&gradient_to2=green"
+    )
+    assert rv.status_code == 200

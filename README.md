@@ -64,6 +64,14 @@
 *   **`qr_offset_x`** (整数, デフォルト: 0): QRコードのX方向オフセット（ピクセル）。
 *   **`qr_offset_y`** (整数, デフォルト: 0): QRコードのY方向オフセット（ピクセル）。
 
+### 複数テキストレイヤー
+
+複数のテキストを個別にスタイリングして重ねて描画できます。
+
+*   **`text2`**, **`text3`**, ... (文字列): 追加のテキスト。パスパラメータのテキストがレイヤー1、`text2` がレイヤー2、順に後面から描画されます。
+*   各追加テキストに個別のパラメータを指定可能（末尾にレイヤー番号）:
+    `fill2`, `font_size2`, `position2`, `x2`, `y2`, `offset_x2`, `offset_y2`, `rotation2`, `align2`, `spacing2`, `shadow_color2`, `shadow_offset_x2`, `shadow_offset_y2`, `stroke_width2`, `stroke_color2`, `gradient_from2`, `gradient_to2`
+
 ### 使用例
 
 ブラウザで以下のURLにアクセスして画像を生成できます。
@@ -81,6 +89,7 @@
 *   **テキストに縁取り:** `http://127.0.0.1:5000/Stroked_Text?stroke_width=3&stroke_color=blue`
 *   **グラデーション文字:** `http://127.0.0.1:5000/Gradient_Text?gradient_from=red&gradient_to=blue`
 *   **回転テキスト:** `http://127.0.0.1:5000/Rotated_Text?rotation=45`
+*   **複数テキスト:** `http://127.0.0.1:5000/Hello?text2=World&fill2=red&position2=bottom-right&font_size2=60`
 
 
 
