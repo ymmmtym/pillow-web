@@ -283,8 +283,15 @@ def _resolve_position(
             raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
         anchor, _, _ = POSITION_MAP[p]
     pos_x, pos_y = _resolve_xy_position(
-        width, height, 0, 0,
-        position=position, x=x, y=y, offset_x=offset_x, offset_y=offset_y,
+        width,
+        height,
+        0,
+        0,
+        position=position,
+        x=x,
+        y=y,
+        offset_x=offset_x,
+        offset_y=offset_y,
     )
     return float(pos_x), float(pos_y), anchor
 
