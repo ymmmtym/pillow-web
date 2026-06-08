@@ -55,6 +55,14 @@
 *   **`rotation`** (数値, デフォルト: 0): テキストの回転角度（度）。
 *   **`filter`** (文字列, オプション): 画像に適用するフィルター効果。`blur`, `sepia`, `grayscale`, `brightness`, `contour`, `emboss`, `sharpen`, `smooth`, `edge_enhance` のいずれか。
 *   **`filter_strength`** (数値, オプション): フィルターの強度。blurの場合はぼかし半径、brightnessの場合は明度倍率、sepiaの場合はブレンド率（0〜1、1.0を超える値は1.0として扱われます）。デフォルトはフィルターごとに異なります。
+*   **`qr`** (文字列, オプション): QRコードにエンコードする文字列。指定すると画像内にQRコードが埋め込まれます。
+*   **`qr_size`** (整数, デフォルト: 10): QRコードのモジュールサイズ（ピクセル）。
+*   **`qr_error_correction`** (文字列, デフォルト: `M`): QRコードの誤り訂正レベル。`L`（低）, `M`（中）, `Q`（やや高）, `H`（高）のいずれか。
+*   **`qr_position`** (文字列, オプション): QRコードの配置位置。`top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` のいずれか。
+*   **`qr_x`** (整数, オプション): QRコードのX座標（ピクセル）。
+*   **`qr_y`** (整数, オプション): QRコードのY座標（ピクセル）。
+*   **`qr_offset_x`** (整数, デフォルト: 0): QRコードのX方向オフセット（ピクセル）。
+*   **`qr_offset_y`** (整数, デフォルト: 0): QRコードのY方向オフセット（ピクセル）。
 
 ### 使用例
 
@@ -67,6 +75,7 @@
 *   **画像背景:** `http://127.0.0.1:5000/With_Image_Background?backgroundimage=https://example.com/your_image.jpg`
     *(`https://example.com/your_image.jpg` を実際の画像のURLに置き換えてください。)*
 *   **テキスト位置指定:** `http://127.0.0.1:5000/Bottom_Right?position=bottom-right&offset_x=-10&offset_y=-10`
+*   **QRコード埋め込み:** `http://127.0.0.1:5000/QR_Code?qr=https://example.com&qr_position=top-right&qr_size=15`
 *   **ピクセル指定:** `http://127.0.0.1:5000/Exact_Position?x=50&y=50`
 *   **テキストに影:** `http://127.0.0.1:5000/Shadow_Text?shadow_color=gray&shadow_offset_x=5&shadow_offset_y=5`
 *   **テキストに縁取り:** `http://127.0.0.1:5000/Stroked_Text?stroke_width=3&stroke_color=blue`

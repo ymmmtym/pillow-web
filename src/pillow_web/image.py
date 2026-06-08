@@ -8,6 +8,7 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
+import qrcode
 import requests
 from PIL import Image, ImageColor, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
@@ -86,6 +87,92 @@ def _load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
+_ERROR_CORRECTION_MAP: dict[str, int] = {
+    "L": qrcode.constants.ERROR_CORRECT_L,
+    "M": qrcode.constants.ERROR_CORRECT_M,
+    "Q": qrcode.constants.ERROR_CORRECT_Q,
+    "H": qrcode.constants.ERROR_CORRECT_H,
+}
+
+QR_DEFAULT_BOX_SIZE = 10
+QR_MAX_BOX_SIZE = 50
+QR_DEFAULT_ERROR_CORRECTION = "M"
+
+
+def _generate_qr_code(
+    content: str,
+    box_size: int = QR_DEFAULT_BOX_SIZE,
+    error_correction: str = QR_DEFAULT_ERROR_CORRECTION,
+) -> Image.Image:
+    if box_size > QR_MAX_BOX_SIZE:
+        raise ValidationError(f"qr_size must not exceed {QR_MAX_BOX_SIZE}")
+    ec_level = _ERROR_CORRECTION_MAP.get(error_correction)
+    if ec_level is None:
+        valid = ", ".join(sorted(_ERROR_CORRECTION_MAP))
+        raise ValidationError(f"無効なerror_correctionです: {error_correction}. 有効な値: {valid}")
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=ec_level,
+        box_size=box_size,
+        border=4,
+    )
+    qr.add_data(content)
+    qr.make(fit=True)
+    img: Image.Image = qr.make_image(fill_color="black", back_color="white")
+    return img.convert("RGBA")
+
+
+def _resolve_xy_position(
+    canvas_w: int,
+    canvas_h: int,
+    obj_w: int,
+    obj_h: int,
+    position: str | None = None,
+    x: int | None = None,
+    y: int | None = None,
+    offset_x: int = 0,
+    offset_y: int = 0,
+    _normalized: bool = False,
+) -> tuple[int, int]:
+    pos_x = (canvas_w - obj_w) // 2
+    pos_y = (canvas_h - obj_h) // 2
+
+    if position is not None:
+        p = position if _normalized else position.lower().replace("_", "-")
+        if p not in POSITION_MAP:
+            valid = ", ".join(sorted(POSITION_MAP))
+            raise ValidationError(f"無効なpositionです: {p}. 有効な値: {valid}")
+
+        if p == "top-left":
+            pos_x, pos_y = 0, 0
+        elif p == "top-center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, 0
+        elif p == "top-right":
+            pos_x, pos_y = canvas_w - obj_w, 0
+        elif p == "center-left":
+            pos_x, pos_y = 0, (canvas_h - obj_h) // 2
+        elif p == "center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, (canvas_h - obj_h) // 2
+        elif p == "center-right":
+            pos_x, pos_y = canvas_w - obj_w, (canvas_h - obj_h) // 2
+        elif p == "bottom-left":
+            pos_x, pos_y = 0, canvas_h - obj_h
+        elif p == "bottom-center":
+            pos_x, pos_y = (canvas_w - obj_w) // 2, canvas_h - obj_h
+        elif p == "bottom-right":
+            pos_x, pos_y = canvas_w - obj_w, canvas_h - obj_h
+
+    if x is not None:
+        pos_x = x
+    if y is not None:
+        pos_y = y
+
+    pos_x += offset_x
+    pos_y += offset_y
+
+    return pos_x, pos_y
+
+
 POSITION_MAP = {
     "top-left": ("la", 0, 0),
     "top-center": ("ma", 0, 0),
@@ -97,6 +184,8 @@ POSITION_MAP = {
     "bottom-center": ("md", 0, 0),
     "bottom-right": ("rd", 0, 0),
 }
+# Keys serve as valid position identifiers (used by _resolve_xy_position).
+# Values provide the text-anchor tuple used by _resolve_position.
 
 
 VALID_FILTERS = frozenset(
@@ -190,44 +279,24 @@ def _resolve_position(
     offset_y: int = 0,
 ) -> tuple[float, float, str]:
     anchor = "mm"
-    pos_x = width / 2
-    pos_y = height / 2
-
+    np: str | None = None
     if position is not None:
-        position = position.lower().replace("_", "-")
-        if position not in POSITION_MAP:
-            valid = ", ".join(sorted(POSITION_MAP))
-            raise ValidationError(f"無効なpositionです: {position}. 有効な値: {valid}")
-        anchor, _, _ = POSITION_MAP[position]
-
-    if position == "top-left":
-        pos_x, pos_y = 0, 0
-    elif position == "top-center":
-        pos_x, pos_y = width / 2, 0
-    elif position == "top-right":
-        pos_x, pos_y = width, 0
-    elif position == "center-left":
-        pos_x, pos_y = 0, height / 2
-    elif position == "center":
-        pos_x, pos_y = width / 2, height / 2
-    elif position == "center-right":
-        pos_x, pos_y = width, height / 2
-    elif position == "bottom-left":
-        pos_x, pos_y = 0, height
-    elif position == "bottom-center":
-        pos_x, pos_y = width / 2, height
-    elif position == "bottom-right":
-        pos_x, pos_y = width, height
-
-    if x is not None:
-        pos_x = x
-    if y is not None:
-        pos_y = y
-
-    pos_x += offset_x
-    pos_y += offset_y
-
-    return pos_x, pos_y, anchor
+        np = position.lower().replace("_", "-")
+        if np in POSITION_MAP:
+            anchor, _, _ = POSITION_MAP[np]
+    pos_x, pos_y = _resolve_xy_position(
+        width,
+        height,
+        0,
+        0,
+        position=np,
+        x=x,
+        y=y,
+        offset_x=offset_x,
+        offset_y=offset_y,
+        _normalized=True,
+    )
+    return float(pos_x), float(pos_y), anchor
 
 
 def _get_cached_background_image(url: str, mode: str, width: int, height: int) -> Image.Image | None:
@@ -311,6 +380,14 @@ def generate_image(
     rotation: float = 0,
     filter_type: str | None = None,
     filter_strength: float | None = None,
+    qr: str | None = None,
+    qr_size: int = QR_DEFAULT_BOX_SIZE,
+    qr_error_correction: str = QR_DEFAULT_ERROR_CORRECTION,
+    qr_position: str | None = None,
+    qr_x: int | None = None,
+    qr_y: int | None = None,
+    qr_offset_x: int = 0,
+    qr_offset_y: int = 0,
 ) -> Image.Image:
     if background_image_url:
         cached = _get_cached_background_image(background_image_url, mode, width, height)
@@ -461,8 +538,28 @@ def generate_image(
             stroke_fill=stroke_rgba,
         )
 
-    image = apply_filter(image, filter_type, filter_strength)
+    if qr:
+        qr_image = _generate_qr_code(qr, box_size=qr_size, error_correction=qr_error_correction)
+        paste_x, paste_y = _resolve_xy_position(
+            width,
+            height,
+            qr_image.width,
+            qr_image.height,
+            position=qr_position,
+            x=qr_x,
+            y=qr_y,
+            offset_x=qr_offset_x,
+            offset_y=qr_offset_y,
+        )
+        if qr_image.width > width or qr_image.height > height:
+            raise ValidationError("QR code exceeds image dimensions")
+        paste_x = max(0, min(paste_x, width - qr_image.width))
+        paste_y = max(0, min(paste_y, height - qr_image.height))
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+        image.paste(qr_image, (paste_x, paste_y), qr_image)
 
+    image = apply_filter(image, filter_type, filter_strength)
     return image
 
 
