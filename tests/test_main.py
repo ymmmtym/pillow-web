@@ -717,48 +717,48 @@ def test_filter_grayscale_with_rgba(client: FlaskClient) -> None:
 
 
 def test_qr_code_basic(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com")
+    rv = client.get("/test?qr=https://example.com&height=400")
     assert rv.status_code == 200
     assert rv.headers["Content-Type"] == "image/png"
     img = Image.open(BytesIO(rv.data))
-    assert img.size == (600, 200)
+    assert img.size == (600, 400)
 
 
 def test_qr_code_with_custom_size(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&width=400&height=300")
+    rv = client.get("/test?qr=https://example.com&width=400&height=400")
     assert rv.status_code == 200
     img = Image.open(BytesIO(rv.data))
-    assert img.size == (400, 300)
+    assert img.size == (400, 400)
 
 
 def test_qr_code_position(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&qr_position=top-left")
+    rv = client.get("/test?qr=https://example.com&height=400&qr_position=top-left")
     assert rv.status_code == 200
 
 
 def test_qr_code_position_bottom_right(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&qr_position=bottom-right")
+    rv = client.get("/test?qr=https://example.com&height=400&qr_position=bottom-right")
     assert rv.status_code == 200
 
 
 def test_qr_code_xy(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&qr_x=10&qr_y=10")
+    rv = client.get("/test?qr=https://example.com&height=400&qr_x=10&qr_y=10")
     assert rv.status_code == 200
 
 
 def test_qr_code_offset(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&qr_offset_x=5&qr_offset_y=5")
+    rv = client.get("/test?qr=https://example.com&height=400&qr_offset_x=5&qr_offset_y=5")
     assert rv.status_code == 200
 
 
 def test_qr_code_custom_box_size(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&qr_size=20")
+    rv = client.get("/test?qr=https://example.com&qr_size=20&width=700&height=700")
     assert rv.status_code == 200
 
 
 def test_qr_code_error_correction(client: FlaskClient) -> None:
     for level in ("L", "M", "Q", "H"):
-        rv = client.get(f"/test?qr=https://example.com&qr_error_correction={level}")
+        rv = client.get(f"/test?qr=https://example.com&height=400&qr_error_correction={level}")
         assert rv.status_code == 200
 
 
@@ -788,12 +788,12 @@ def test_qr_code_invalid_position(client: FlaskClient) -> None:
 
 
 def test_qr_code_with_rgba(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com&mode=RGBA&color=transparent")
+    rv = client.get("/test?qr=https://example.com&height=400&mode=RGBA&color=transparent")
     assert rv.status_code == 200
 
 
 def test_qr_code_image_has_qr_content(client: FlaskClient) -> None:
-    rv = client.get("/test?qr=https://example.com")
+    rv = client.get("/test?qr=https://example.com&height=400")
     assert rv.status_code == 200
     img = Image.open(BytesIO(rv.data))
     assert img.mode in ("RGB", "RGBA")

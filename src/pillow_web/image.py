@@ -434,6 +434,8 @@ def generate_image(
         )
         paste_x = max(0, paste_x)
         paste_y = max(0, paste_y)
+        if qr_image.width > width or qr_image.height > height:
+            raise ValidationError("QR code exceeds image dimensions")
         if image.mode != "RGBA":
             image = image.convert("RGBA")
         image.paste(qr_image, (paste_x, paste_y), qr_image)
