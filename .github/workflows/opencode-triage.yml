@@ -32,12 +32,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Configure git user
-        if: steps.check.outputs.result == 'true'
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
       - uses: anomalyco/opencode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
