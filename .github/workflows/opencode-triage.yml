@@ -27,7 +27,7 @@ jobs:
             return days >= 30;
           result-encoding: string
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: steps.check.outputs.result == 'true'
         with:
           persist-credentials: false
