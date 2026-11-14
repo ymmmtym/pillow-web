@@ -402,7 +402,8 @@ def _read_limited_body(response: requests.Response) -> bytes:
 
 
 def _fetch_background_image(url: str) -> bytes:
-    """Download a background image while enforcing size and SSRF limits.
+    """
+    Download a background image while enforcing size and SSRF limits.
 
     Redirects are followed manually so that every hop is validated, and the
     body is streamed so an oversized response is aborted before it is buffered.

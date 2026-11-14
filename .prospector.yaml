@@ -1,0 +1,7 @@
+strictness: medium
+test-warnings: false
+doc-warnings: true
+
+pydocstyle:
+  disable:
+    - D212
