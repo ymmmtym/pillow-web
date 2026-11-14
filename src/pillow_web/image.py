@@ -362,8 +362,7 @@ def clear_cache() -> None:
 
 
 def _validate_connected_peer(response: requests.Response) -> None:
-    """
-    Reject responses whose actual peer address is on a private network.
+    """Reject responses whose actual peer address is on a private network.
 
     ``validate_background_image_url`` resolves the hostname before the request,
     which leaves a DNS rebinding window between validation and connection. This
