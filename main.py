@@ -175,6 +175,36 @@ def _get_extra_text_value(index: int) -> str | None:
     return text_val
 
 
+_NON_FINITE_FLOAT_VALUES = {
+    "nan",
+    "+nan",
+    "-nan",
+    "inf",
+    "+inf",
+    "-inf",
+    "infinity",
+    "+infinity",
+    "-infinity",
+}
+
+
+def _parse_finite_float(raw_value: str | int | float, index: int) -> float:
+    value = str(raw_value).strip().lower()
+    if value in _NON_FINITE_FLOAT_VALUES:
+        raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
+    try:
+        rotation = float(value)
+    except ValueError:
+        raise ValidationError(
+            f"text{index}関連パラメータの値が不正です: "
+            "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
+            "shadow_offset_y, stroke_width, rotationには数値を指定してください"
+        )
+    if not math.isfinite(rotation):
+        raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
+    return rotation
+
+
 def _parse_extra_text_numbers(
     index: int,
 ) -> tuple[int, int, int, int, int, int, int, float, int | None, int | None]:
@@ -186,7 +216,6 @@ def _parse_extra_text_numbers(
         shadow_offset_x = int(request.args.get(f"shadow_offset_x{index}", 3))
         shadow_offset_y = int(request.args.get(f"shadow_offset_y{index}", 3))
         stroke_width = int(request.args.get(f"stroke_width{index}", 0))
-        rotation = float(request.args.get(f"rotation{index}", 0))
         x_param = request.args.get(f"x{index}")
         y_param = request.args.get(f"y{index}")
         x = int(x_param) if x_param is not None else None
@@ -197,8 +226,7 @@ def _parse_extra_text_numbers(
             "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
             "shadow_offset_y, stroke_width, rotationには数値を指定してください"
         )
-    if not math.isfinite(rotation):
-        raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
+    rotation = _parse_finite_float(request.args.get(f"rotation{index}", 0), index)
     return (
         font_size,
         spacing,
