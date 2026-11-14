@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+from dataclasses import dataclass
 
 from flask import Flask, Response, request, send_file
 from flask_limiter import Limiter
@@ -175,6 +176,12 @@ def _get_extra_text_value(index: int) -> str | None:
     return text_val
 
 
+_INVALID_EXTRA_TEXT_PARAM_MESSAGE = (
+    "text{index}関連パラメータの値が不正です: "
+    "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
+    "shadow_offset_y, stroke_width, rotationには数値を指定してください"
+)
+
 _NON_FINITE_FLOAT_VALUES = {
     "nan",
     "+nan",
@@ -188,18 +195,36 @@ _NON_FINITE_FLOAT_VALUES = {
 }
 
 
+@dataclass(frozen=True)
+class _ExtraTextData:
+    text: str
+    font_size: int
+    spacing: int
+    offset_x: int
+    offset_y: int
+    shadow_offset_x: int
+    shadow_offset_y: int
+    stroke_width: int
+    rotation: float
+    x: int | None
+    y: int | None
+    align: str
+    fill: str
+    position: str | None
+    shadow_color: str | None
+    stroke_color: str
+    gradient_from: str | None
+    gradient_to: str | None
+
+
 def _parse_finite_float(raw_value: str | int | float, index: int) -> float:
     value = str(raw_value).strip().lower()
     if value in _NON_FINITE_FLOAT_VALUES:
         raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
     try:
         rotation = float(value)
-    except ValueError:
-        raise ValidationError(
-            f"text{index}関連パラメータの値が不正です: "
-            "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
-            "shadow_offset_y, stroke_width, rotationには数値を指定してください"
-        )
+    except ValueError as exc:
+        raise ValidationError(_INVALID_EXTRA_TEXT_PARAM_MESSAGE.format(index=index)) from exc
     if not math.isfinite(rotation):
         raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
     return rotation
@@ -207,7 +232,7 @@ def _parse_finite_float(raw_value: str | int | float, index: int) -> float:
 
 def _parse_extra_text_numbers(
     index: int,
-) -> tuple[int, int, int, int, int, int, int, float, int | None, int | None]:
+) -> tuple[int, int, int, int, int, int, int, int | None, int | None]:
     try:
         font_size = int(request.args.get(f"font_size{index}", DEFAULT_FONT_SIZE))
         spacing = int(request.args.get(f"spacing{index}", DEFAULT_SPACING))
@@ -220,13 +245,8 @@ def _parse_extra_text_numbers(
         y_param = request.args.get(f"y{index}")
         x = int(x_param) if x_param is not None else None
         y = int(y_param) if y_param is not None else None
-    except ValueError:
-        raise ValidationError(
-            f"text{index}関連パラメータの値が不正です: "
-            "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
-            "shadow_offset_y, stroke_width, rotationには数値を指定してください"
-        )
-    rotation = _parse_finite_float(request.args.get(f"rotation{index}", 0), index)
+    except ValueError as exc:
+        raise ValidationError(_INVALID_EXTRA_TEXT_PARAM_MESSAGE.format(index=index)) from exc
     return (
         font_size,
         spacing,
@@ -235,41 +255,32 @@ def _parse_extra_text_numbers(
         shadow_offset_x,
         shadow_offset_y,
         stroke_width,
-        rotation,
         x,
         y,
     )
 
 
-def _validate_extra_text_layer(
-    index: int,
-    width: int,
-    height: int,
-    font_size: int,
-    spacing: int,
-    stroke_width: int,
-    shadow: tuple[str | None, int, int],
-    options: tuple[str, str | None, str | None],
-) -> None:
-    align, gradient_from, gradient_to = options
-    shadow_color, shadow_offset_x, shadow_offset_y = shadow
-    if font_size <= 0:
+def _validate_extra_text_data(index: int, size: tuple[int, int], data: _ExtraTextData) -> None:
+    width, height = size
+    if data.font_size <= 0:
         raise ValidationError(f"text{index}のfont_sizeは0より大きい値を指定してください")
-    if spacing < 0:
+    if data.spacing < 0:
         raise ValidationError(f"text{index}のspacingに負の値は指定できません")
-    if stroke_width < 0:
+    if data.stroke_width < 0:
         raise ValidationError(f"text{index}のstroke_widthに負の値は指定できません")
-    if align not in ("left", "center", "right"):
+    if data.align not in ("left", "center", "right"):
         raise ValidationError(f"text{index}のalignは left, center, right のいずれかを指定してください")
-    if (gradient_from is not None) != (gradient_to is not None):
+    if (data.gradient_from is not None) != (data.gradient_to is not None):
         raise ValidationError(f"text{index}のgradient_fromとgradient_toは両方指定する必要があります")
-    if shadow_color is not None and (abs(shadow_offset_x) > width or abs(shadow_offset_y) > height):
+    if data.shadow_color is not None and (
+        abs(data.shadow_offset_x) > width or abs(data.shadow_offset_y) > height
+    ):
         raise ValidationError(
             f"text{index}のshadow_offset_x, shadow_offset_yは画像サイズを超えない値を指定してください"
         )
 
 
-def _build_extra_text_layer(index: int, width: int, height: int, text_val: str) -> TextLayer:
+def _build_extra_text_data(index: int, text_val: str) -> _ExtraTextData:
     (
         font_size,
         spacing,
@@ -278,43 +289,53 @@ def _build_extra_text_layer(index: int, width: int, height: int, text_val: str) 
         shadow_offset_x,
         shadow_offset_y,
         stroke_width,
-        rotation,
         x,
         y,
     ) = _parse_extra_text_numbers(index)
-    align = request.args.get(f"align{index}", DEFAULT_ALIGN)
-    shadow_color = request.args.get(f"shadow_color{index}")
-    gradient_from = request.args.get(f"gradient_from{index}")
-    gradient_to = request.args.get(f"gradient_to{index}")
-    _validate_extra_text_layer(
-        index,
-        width,
-        height,
-        font_size,
-        spacing,
-        stroke_width,
-        (shadow_color, shadow_offset_x, shadow_offset_y),
-        (align, gradient_from, gradient_to),
-    )
-    return TextLayer(
+    return _ExtraTextData(
         text=text_val,
-        fill=request.args.get(f"fill{index}", DEFAULT_FILL),
         font_size=font_size,
-        x=x,
-        y=y,
-        position=request.args.get(f"position{index}"),
+        spacing=spacing,
         offset_x=offset_x,
         offset_y=offset_y,
-        rotation=rotation,
-        align=align,
-        spacing=spacing,
-        shadow_color=shadow_color,
         shadow_offset_x=shadow_offset_x,
         shadow_offset_y=shadow_offset_y,
         stroke_width=stroke_width,
+        rotation=_parse_finite_float(request.args.get(f"rotation{index}", 0), index),
+        x=x,
+        y=y,
+        align=request.args.get(f"align{index}", DEFAULT_ALIGN),
+        fill=request.args.get(f"fill{index}", DEFAULT_FILL),
+        position=request.args.get(f"position{index}"),
+        shadow_color=request.args.get(f"shadow_color{index}"),
         stroke_color=request.args.get(f"stroke_color{index}", "black"),
-        gradient_from=gradient_from,
-        gradient_to=gradient_to,
+        gradient_from=request.args.get(f"gradient_from{index}"),
+        gradient_to=request.args.get(f"gradient_to{index}"),
+    )
+
+
+def _build_extra_text_layer(index: int, width: int, height: int, text_val: str) -> TextLayer:
+    data = _build_extra_text_data(index, text_val)
+    _validate_extra_text_data(index, (width, height), data)
+    return TextLayer(
+        text=data.text,
+        fill=data.fill,
+        font_size=data.font_size,
+        x=data.x,
+        y=data.y,
+        position=data.position,
+        offset_x=data.offset_x,
+        offset_y=data.offset_y,
+        rotation=data.rotation,
+        align=data.align,
+        spacing=data.spacing,
+        shadow_color=data.shadow_color,
+        shadow_offset_x=data.shadow_offset_x,
+        shadow_offset_y=data.shadow_offset_y,
+        stroke_width=data.stroke_width,
+        stroke_color=data.stroke_color,
+        gradient_from=data.gradient_from,
+        gradient_to=data.gradient_to,
     )
 
 
