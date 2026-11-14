@@ -7,6 +7,7 @@ import os
 from flask import Flask, Response, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from PIL import ImageColor
 
 from pillow_web.exceptions import BackgroundImageError, PillowWebError, ValidationError
 from pillow_web.image import (
@@ -165,7 +166,7 @@ def openapi_spec() -> Response:
     return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
 
 
-def _parse_extra_text_layers() -> list[TextLayer]:
+def _parse_extra_text_layers(width: int, height: int) -> list[TextLayer]:
     layers: list[TextLayer] = []
     i = 2
     while True:
@@ -213,6 +214,10 @@ def _parse_extra_text_layers() -> list[TextLayer]:
         gradient_to: str | None = request.args.get(f"gradient_to{i}")
         if (gradient_from is not None) != (gradient_to is not None):
             raise ValidationError(f"text{i}のgradient_fromとgradient_toは両方指定する必要があります")
+        if shadow_color is not None and (abs(shadow_offset_x) > width or abs(shadow_offset_y) > height):
+            raise ValidationError(
+                f"text{i}のshadow_offset_x, shadow_offset_yは画像サイズを超えない値を指定してください"
+            )
 
         layers.append(
             TextLayer(
@@ -287,6 +292,11 @@ def images(text: str) -> Response | tuple[str, int]:
             raise ValidationError("alignは left, center, right のいずれかを指定してください")
         if mode not in ("RGB", "RGBA"):
             raise ValidationError("modeは RGB または RGBA を指定してください")
+        if not background_image_url and not (mode == "RGBA" and color_spec == "transparent"):
+            try:
+                ImageColor.getrgb(color_spec)
+            except ValueError:
+                raise ValidationError("colorには色名または16進数カラーコードを指定してください") from None
 
         format_param: str = request.args.get("format", "png").lower()
         if format_param not in ("png", "jpg", "jpeg", "webp", "avif"):
@@ -380,7 +390,7 @@ def images(text: str) -> Response | tuple[str, int]:
         if qr_error_correction not in ("L", "M", "Q", "H"):
             raise ValidationError("qr_error_correctionは L, M, Q, H のいずれかを指定してください")
 
-        extra_text_layers = _parse_extra_text_layers()
+        extra_text_layers = _parse_extra_text_layers(width, height)
         image = generate_image(
             text,
             width,
@@ -434,7 +444,7 @@ def images(text: str) -> Response | tuple[str, int]:
         return str(e), 400
     except Exception as e:
         logger.critical("予期せぬエラー: %s", e, exc_info=True)
-        return f"予期せぬエラーが発生しました: {e}", 500
+        return "予期せぬエラーが発生しました", 500
 
 
 if __name__ == "__main__":
