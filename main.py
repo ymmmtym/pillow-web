@@ -197,6 +197,8 @@ def _parse_extra_text_numbers(
             "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
             "shadow_offset_y, stroke_width, rotationには数値を指定してください"
         )
+    if not math.isfinite(rotation):
+        raise ValidationError(f"text{index}のrotationには有限な数値を指定してください")
     return (
         font_size,
         spacing,
@@ -218,13 +220,11 @@ def _validate_extra_text_layer(
     font_size: int,
     spacing: int,
     stroke_width: int,
-    align: str,
-    shadow_color: str | None,
-    shadow_offset_x: int,
-    shadow_offset_y: int,
-    gradient_from: str | None,
-    gradient_to: str | None,
+    shadow: tuple[str | None, int, int],
+    options: tuple[str, str | None, str | None],
 ) -> None:
+    align, gradient_from, gradient_to = options
+    shadow_color, shadow_offset_x, shadow_offset_y = shadow
     if font_size <= 0:
         raise ValidationError(f"text{index}のfont_sizeは0より大きい値を指定してください")
     if spacing < 0:
@@ -241,6 +241,55 @@ def _validate_extra_text_layer(
         )
 
 
+def _build_extra_text_layer(index: int, width: int, height: int, text_val: str) -> TextLayer:
+    (
+        font_size,
+        spacing,
+        offset_x,
+        offset_y,
+        shadow_offset_x,
+        shadow_offset_y,
+        stroke_width,
+        rotation,
+        x,
+        y,
+    ) = _parse_extra_text_numbers(index)
+    align = request.args.get(f"align{index}", DEFAULT_ALIGN)
+    shadow_color = request.args.get(f"shadow_color{index}")
+    gradient_from = request.args.get(f"gradient_from{index}")
+    gradient_to = request.args.get(f"gradient_to{index}")
+    _validate_extra_text_layer(
+        index,
+        width,
+        height,
+        font_size,
+        spacing,
+        stroke_width,
+        (shadow_color, shadow_offset_x, shadow_offset_y),
+        (align, gradient_from, gradient_to),
+    )
+    return TextLayer(
+        text=text_val,
+        fill=request.args.get(f"fill{index}", DEFAULT_FILL),
+        font_size=font_size,
+        x=x,
+        y=y,
+        position=request.args.get(f"position{index}"),
+        offset_x=offset_x,
+        offset_y=offset_y,
+        rotation=rotation,
+        align=align,
+        spacing=spacing,
+        shadow_color=shadow_color,
+        shadow_offset_x=shadow_offset_x,
+        shadow_offset_y=shadow_offset_y,
+        stroke_width=stroke_width,
+        stroke_color=request.args.get(f"stroke_color{index}", "black"),
+        gradient_from=gradient_from,
+        gradient_to=gradient_to,
+    )
+
+
 def _parse_extra_text_layers(width: int, height: int) -> list[TextLayer]:
     layers: list[TextLayer] = []
     index = 2
@@ -248,58 +297,7 @@ def _parse_extra_text_layers(width: int, height: int) -> list[TextLayer]:
         text_val = _get_extra_text_value(index)
         if text_val is None:
             break
-        (
-            font_size,
-            spacing,
-            offset_x,
-            offset_y,
-            shadow_offset_x,
-            shadow_offset_y,
-            stroke_width,
-            rotation,
-            x,
-            y,
-        ) = _parse_extra_text_numbers(index)
-        align = request.args.get(f"align{index}", DEFAULT_ALIGN)
-        shadow_color = request.args.get(f"shadow_color{index}")
-        gradient_from = request.args.get(f"gradient_from{index}")
-        gradient_to = request.args.get(f"gradient_to{index}")
-        _validate_extra_text_layer(
-            index,
-            width,
-            height,
-            font_size,
-            spacing,
-            stroke_width,
-            align,
-            shadow_color,
-            shadow_offset_x,
-            shadow_offset_y,
-            gradient_from,
-            gradient_to,
-        )
-        layers.append(
-            TextLayer(
-                text=text_val,
-                fill=request.args.get(f"fill{index}", DEFAULT_FILL),
-                font_size=font_size,
-                x=x,
-                y=y,
-                position=request.args.get(f"position{index}"),
-                offset_x=offset_x,
-                offset_y=offset_y,
-                rotation=rotation,
-                align=align,
-                spacing=spacing,
-                shadow_color=shadow_color,
-                shadow_offset_x=shadow_offset_x,
-                shadow_offset_y=shadow_offset_y,
-                stroke_width=stroke_width,
-                stroke_color=request.args.get(f"stroke_color{index}", "black"),
-                gradient_from=gradient_from,
-                gradient_to=gradient_to,
-            )
-        )
+        layers.append(_build_extra_text_layer(index, width, height, text_val))
         index += 1
     return layers
 
