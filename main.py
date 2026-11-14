@@ -166,67 +166,126 @@ def openapi_spec() -> Response:
     return send_file(OPENAPI_SPEC_PATH, mimetype="text/yaml")
 
 
+def _get_extra_text_value(index: int) -> str | None:
+    text_val = request.args.get(f"text{index}")
+    if text_val is None:
+        return None
+    if text_val == "":
+        raise ValidationError(f"text{index}には空文字列以外を指定してください")
+    return text_val
+
+
+def _parse_extra_text_numbers(
+    index: int,
+) -> tuple[int, int, int, int, int, int, int, float, int | None, int | None]:
+    try:
+        font_size = int(request.args.get(f"font_size{index}", DEFAULT_FONT_SIZE))
+        spacing = int(request.args.get(f"spacing{index}", DEFAULT_SPACING))
+        offset_x = int(request.args.get(f"offset_x{index}", 0))
+        offset_y = int(request.args.get(f"offset_y{index}", 0))
+        shadow_offset_x = int(request.args.get(f"shadow_offset_x{index}", 3))
+        shadow_offset_y = int(request.args.get(f"shadow_offset_y{index}", 3))
+        stroke_width = int(request.args.get(f"stroke_width{index}", 0))
+        rotation = float(request.args.get(f"rotation{index}", 0))
+        x_param = request.args.get(f"x{index}")
+        y_param = request.args.get(f"y{index}")
+        x = int(x_param) if x_param is not None else None
+        y = int(y_param) if y_param is not None else None
+    except ValueError:
+        raise ValidationError(
+            f"text{index}関連パラメータの値が不正です: "
+            "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
+            "shadow_offset_y, stroke_width, rotationには数値を指定してください"
+        )
+    return (
+        font_size,
+        spacing,
+        offset_x,
+        offset_y,
+        shadow_offset_x,
+        shadow_offset_y,
+        stroke_width,
+        rotation,
+        x,
+        y,
+    )
+
+
+def _validate_extra_text_layer(
+    index: int,
+    width: int,
+    height: int,
+    font_size: int,
+    spacing: int,
+    stroke_width: int,
+    align: str,
+    shadow_color: str | None,
+    shadow_offset_x: int,
+    shadow_offset_y: int,
+    gradient_from: str | None,
+    gradient_to: str | None,
+) -> None:
+    if font_size <= 0:
+        raise ValidationError(f"text{index}のfont_sizeは0より大きい値を指定してください")
+    if spacing < 0:
+        raise ValidationError(f"text{index}のspacingに負の値は指定できません")
+    if stroke_width < 0:
+        raise ValidationError(f"text{index}のstroke_widthに負の値は指定できません")
+    if align not in ("left", "center", "right"):
+        raise ValidationError(f"text{index}のalignは left, center, right のいずれかを指定してください")
+    if (gradient_from is not None) != (gradient_to is not None):
+        raise ValidationError(f"text{index}のgradient_fromとgradient_toは両方指定する必要があります")
+    if shadow_color is not None and (abs(shadow_offset_x) > width or abs(shadow_offset_y) > height):
+        raise ValidationError(
+            f"text{index}のshadow_offset_x, shadow_offset_yは画像サイズを超えない値を指定してください"
+        )
+
+
 def _parse_extra_text_layers(width: int, height: int) -> list[TextLayer]:
     layers: list[TextLayer] = []
-    i = 2
+    index = 2
     while True:
-        text_val = request.args.get(f"text{i}")
+        text_val = _get_extra_text_value(index)
         if text_val is None:
             break
-        if text_val == "":
-            raise ValidationError(f"text{i}には空文字列以外を指定してください")
-
-        try:
-            font_size = int(request.args.get(f"font_size{i}", DEFAULT_FONT_SIZE))
-            spacing = int(request.args.get(f"spacing{i}", DEFAULT_SPACING))
-            offset_x = int(request.args.get(f"offset_x{i}", 0))
-            offset_y = int(request.args.get(f"offset_y{i}", 0))
-            shadow_offset_x = int(request.args.get(f"shadow_offset_x{i}", 3))
-            shadow_offset_y = int(request.args.get(f"shadow_offset_y{i}", 3))
-            stroke_width = int(request.args.get(f"stroke_width{i}", 0))
-            rotation = float(request.args.get(f"rotation{i}", 0))
-            x_param = request.args.get(f"x{i}")
-            y_param = request.args.get(f"y{i}")
-            x = int(x_param) if x_param is not None else None
-            y = int(y_param) if y_param is not None else None
-        except ValueError:
-            raise ValidationError(
-                f"text{i}関連パラメータの値が不正です: "
-                "font_size, spacing, offset_x, offset_y, x, y, shadow_offset_x, "
-                "shadow_offset_y, stroke_width, rotationには数値を指定してください"
-            )
-
-        if font_size <= 0:
-            raise ValidationError(f"text{i}のfont_sizeは0より大きい値を指定してください")
-        if spacing < 0:
-            raise ValidationError(f"text{i}のspacingに負の値は指定できません")
-        if stroke_width < 0:
-            raise ValidationError(f"text{i}のstroke_widthに負の値は指定できません")
-
-        align = request.args.get(f"align{i}", DEFAULT_ALIGN)
-        if align not in ("left", "center", "right"):
-            raise ValidationError(f"text{i}のalignは left, center, right のいずれかを指定してください")
-
-        fill = request.args.get(f"fill{i}", DEFAULT_FILL)
-        shadow_color: str | None = request.args.get(f"shadow_color{i}")
-        stroke_color: str = request.args.get(f"stroke_color{i}", "black")
-        gradient_from: str | None = request.args.get(f"gradient_from{i}")
-        gradient_to: str | None = request.args.get(f"gradient_to{i}")
-        if (gradient_from is not None) != (gradient_to is not None):
-            raise ValidationError(f"text{i}のgradient_fromとgradient_toは両方指定する必要があります")
-        if shadow_color is not None and (abs(shadow_offset_x) > width or abs(shadow_offset_y) > height):
-            raise ValidationError(
-                f"text{i}のshadow_offset_x, shadow_offset_yは画像サイズを超えない値を指定してください"
-            )
-
+        (
+            font_size,
+            spacing,
+            offset_x,
+            offset_y,
+            shadow_offset_x,
+            shadow_offset_y,
+            stroke_width,
+            rotation,
+            x,
+            y,
+        ) = _parse_extra_text_numbers(index)
+        align = request.args.get(f"align{index}", DEFAULT_ALIGN)
+        shadow_color = request.args.get(f"shadow_color{index}")
+        gradient_from = request.args.get(f"gradient_from{index}")
+        gradient_to = request.args.get(f"gradient_to{index}")
+        _validate_extra_text_layer(
+            index,
+            width,
+            height,
+            font_size,
+            spacing,
+            stroke_width,
+            align,
+            shadow_color,
+            shadow_offset_x,
+            shadow_offset_y,
+            gradient_from,
+            gradient_to,
+        )
         layers.append(
             TextLayer(
                 text=text_val,
-                fill=fill,
+                fill=request.args.get(f"fill{index}", DEFAULT_FILL),
                 font_size=font_size,
                 x=x,
                 y=y,
-                position=request.args.get(f"position{i}"),
+                position=request.args.get(f"position{index}"),
                 offset_x=offset_x,
                 offset_y=offset_y,
                 rotation=rotation,
@@ -236,12 +295,12 @@ def _parse_extra_text_layers(width: int, height: int) -> list[TextLayer]:
                 shadow_offset_x=shadow_offset_x,
                 shadow_offset_y=shadow_offset_y,
                 stroke_width=stroke_width,
-                stroke_color=stroke_color,
+                stroke_color=request.args.get(f"stroke_color{index}", "black"),
                 gradient_from=gradient_from,
                 gradient_to=gradient_to,
             )
         )
-        i += 1
+        index += 1
     return layers
 
 
