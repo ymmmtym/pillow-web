@@ -362,7 +362,8 @@ def clear_cache() -> None:
 
 
 def _validate_connected_peer(response: requests.Response) -> None:
-    """Reject responses whose actual peer address is on a private network.
+    """
+    Reject responses whose actual peer address is on a private network.
 
     ``validate_background_image_url`` resolves the hostname before the request,
     which leaves a DNS rebinding window between validation and connection. This
@@ -401,8 +402,7 @@ def _read_limited_body(response: requests.Response) -> bytes:
 
 
 def _fetch_background_image(url: str) -> bytes:
-    """
-    Download a background image while enforcing size and SSRF limits.
+    """Download a background image while enforcing size and SSRF limits.
 
     Redirects are followed manually so that every hop is validated, and the
     body is streamed so an oversized response is aborted before it is buffered.
