@@ -51,3 +51,7 @@ exclude = [
     "uv.lock",
     ".python-version",
 ]
+
+[tool.pydocstyle]
+convention = "pep257"
+add-ignore = "D212"

@@ -12,7 +12,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import main as main_module  # noqa: E402
 from pillow_web.exceptions import ValidationError
-from pillow_web.image import MAX_IMAGE_SIZE, clear_cache
+from pillow_web.image import MAX_IMAGE_SIZE, _set_cached_background_image, clear_cache
 from pillow_web.validation import validate_background_image_url
 
 
@@ -183,6 +183,99 @@ def test_backgroundimage_fetch_failure(client: FlaskClient) -> None:
         rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
         assert rv.status_code == 503
         assert "背景画像の読み込みに失敗" in rv.data.decode()
+
+
+def test_backgroundimage_invalid_body_is_not_cached(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = [b"not an image"]
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        first = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+        second = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+
+    assert first.status_code == 503
+    assert second.status_code == 503
+
+
+def test_backgroundimage_corrupt_cache_entry_is_evicted(client: FlaskClient) -> None:
+    clear_cache()
+    url = "http://93.184.216.34/img.png"
+    _set_cached_background_image(url, b"corrupted cache entry")
+
+    img = Image.new("RGB", (10, 10), (0, 0, 0))
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = [buf.getvalue()]
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get(f"/test?backgroundimage={url}")
+
+    assert rv.status_code == 200
+
+
+def test_backgroundimage_invalid_content_length(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"Content-Length": "not-a-number"}
+    mock_response.iter_content.return_value = [b"image-bytes"]
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+        assert rv.status_code == 503
+
+
+def test_backgroundimage_redirect_to_private_blocked(client: FlaskClient) -> None:
+    clear_cache()
+    redirect = MagicMock()
+    redirect.status_code = 302
+    redirect.headers = {"Location": "http://127.0.0.1/secret.png"}
+    redirect.raw._connection = None
+    with patch("pillow_web.image.requests.get", return_value=redirect) as mock_get:
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+
+    assert rv.status_code == 400
+    assert mock_get.call_count == 1
+
+
+def test_backgroundimage_fetch_is_streamed_without_auto_redirect(client: FlaskClient) -> None:
+    clear_cache()
+    img = Image.new("RGB", (10, 10), (0, 0, 0))
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    content = buf.getvalue()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.iter_content.return_value = [content]
+    with patch("pillow_web.image.requests.get", return_value=mock_response) as mock_get:
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+
+    assert rv.status_code == 200
+    assert mock_get.call_args.kwargs["stream"] is True
+    assert mock_get.call_args.kwargs["allow_redirects"] is False
+
+
+def test_backgroundimage_private_peer_blocked(client: FlaskClient) -> None:
+    clear_cache()
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.raw._connection.sock.getpeername.return_value = ("10.0.0.5", 80)
+    with patch("pillow_web.image.requests.get", return_value=mock_response):
+        rv = client.get("/test?backgroundimage=http://93.184.216.34/img.png")
+
+    assert rv.status_code == 503
+
+
+def test_invalid_color(client: FlaskClient) -> None:
+    rv = client.get("/test?color=notacolor")
+    assert rv.status_code == 400
+    assert "color" in rv.data.decode()
 
 
 def test_invalid_width_non_numeric(client: FlaskClient) -> None:
@@ -1115,6 +1208,21 @@ def test_multi_text_invalid_stroke_width(client: FlaskClient) -> None:
 def test_multi_text_invalid_spacing(client: FlaskClient) -> None:
     rv = client.get("/Hello?text2=World&spacing2=-1")
     assert rv.status_code == 400
+
+
+def test_multi_text_shadow_offset_exceeds_width(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&shadow_color2=gray&shadow_offset_x2=9999")
+    assert rv.status_code == 400
+
+
+def test_multi_text_shadow_offset_exceeds_height(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&shadow_color2=gray&shadow_offset_y2=9999")
+    assert rv.status_code == 400
+
+
+def test_multi_text_shadow_offset_at_boundary(client: FlaskClient) -> None:
+    rv = client.get("/Hello?text2=World&shadow_color2=gray&shadow_offset_x2=600&shadow_offset_y2=200")
+    assert rv.status_code == 200
 
 
 def test_multi_text_invalid_x(client: FlaskClient) -> None:

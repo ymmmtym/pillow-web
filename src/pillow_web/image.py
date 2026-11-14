@@ -8,13 +8,14 @@ from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urljoin
 
 import qrcode
 import requests
 from PIL import Image, ImageColor, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from pillow_web.exceptions import BackgroundImageError, ValidationError
-from pillow_web.validation import validate_background_image_url
+from pillow_web.validation import is_private_ip, validate_background_image_url
 
 
 @dataclass
@@ -44,6 +45,9 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE = 4096
 MAX_BACKGROUND_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 BACKGROUND_IMAGE_TIMEOUT = 10
+MAX_BACKGROUND_IMAGE_REDIRECTS = 5
+BACKGROUND_IMAGE_CHUNK_SIZE = 8192
+REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
 DEFAULT_QUALITY = 70
 CACHE_TTL = 3600
 CACHE_MAX_SIZE = 20
@@ -329,7 +333,13 @@ def _get_cached_background_image(url: str, mode: str, width: int, height: int) -
         if url in _background_image_cache:
             timestamp, data = _background_image_cache[url]
             if now - timestamp < CACHE_TTL:
-                image = Image.open(BytesIO(data)).convert(mode)
+                try:
+                    image = Image.open(BytesIO(data)).convert(mode)
+                except (OSError, ValueError, Image.DecompressionBombError) as e:
+                    # Evict corrupted entries so a fresh (validated) fetch can repopulate the cache.
+                    logger.error("キャッシュされた背景画像が不正です: url=%s, error=%s", url, e)
+                    del _background_image_cache[url]
+                    return None
                 image = image.resize((width, height))
                 return image
             else:
@@ -349,6 +359,95 @@ def _set_cached_background_image(url: str, data: bytes) -> None:
 def clear_cache() -> None:
     with _cache_lock:
         _background_image_cache.clear()
+
+
+def _validate_connected_peer(response: requests.Response) -> None:
+    """
+    Reject responses whose actual peer address is on a private network.
+
+    ``validate_background_image_url`` resolves the hostname before the request,
+    which leaves a DNS rebinding window between validation and connection. This
+    checks the address that was actually connected to.
+    """
+    try:
+        connection = getattr(response.raw, "_connection", None)
+        sock = getattr(connection, "sock", None)
+        if sock is None or not hasattr(sock, "getpeername"):
+            return
+        peer_ip = sock.getpeername()[0]
+    except (AttributeError, IndexError, OSError, TypeError):
+        return
+    if not isinstance(peer_ip, str):
+        return
+    if is_private_ip(peer_ip):
+        raise BackgroundImageError("プライベートネットワークへのリクエストは許可されていません")
+
+
+def _read_limited_body(response: requests.Response) -> bytes:
+    content_length = response.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except (TypeError, ValueError) as e:
+            raise BackgroundImageError("背景画像のContent-Lengthが不正です") from e
+        if declared_length > MAX_BACKGROUND_IMAGE_SIZE:
+            raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
+
+    data = bytearray()
+    for chunk in response.iter_content(chunk_size=BACKGROUND_IMAGE_CHUNK_SIZE):
+        data.extend(chunk)
+        if len(data) > MAX_BACKGROUND_IMAGE_SIZE:
+            raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
+    return bytes(data)
+
+
+def _fetch_background_image(url: str) -> bytes:
+    """
+    Download a background image while enforcing size and SSRF limits.
+
+    Redirects are followed manually so that every hop is validated, and the
+    body is streamed so an oversized response is aborted before it is buffered.
+    """
+    current_url = url
+    for _ in range(MAX_BACKGROUND_IMAGE_REDIRECTS + 1):
+        validate_background_image_url(current_url)
+        try:
+            response = requests.get(
+                current_url,
+                timeout=BACKGROUND_IMAGE_TIMEOUT,
+                stream=True,
+                allow_redirects=False,
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error("背景画像の取得に失敗: url=%s, error=%s", current_url, e)
+            raise BackgroundImageError(f"背景画像の読み込みに失敗しました: {e}") from e
+
+        try:
+            _validate_connected_peer(response)
+            if response.status_code in REDIRECT_STATUS_CODES:
+                location = response.headers.get("Location")
+                if not location:
+                    raise BackgroundImageError("背景画像のリダイレクト先が不正です")
+                current_url = urljoin(current_url, location)
+                continue
+            response.raise_for_status()
+            return _read_limited_body(response)
+        except requests.exceptions.RequestException as e:
+            logger.error("背景画像の取得に失敗: url=%s, error=%s", current_url, e)
+            raise BackgroundImageError(f"背景画像の読み込みに失敗しました: {e}") from e
+        finally:
+            response.close()
+
+    raise BackgroundImageError("背景画像のリダイレクト回数が上限を超えました")
+
+
+def _decode_background_image(data: bytes, mode: str, width: int, height: int) -> Image.Image:
+    try:
+        image = Image.open(BytesIO(data)).convert(mode)
+    except (OSError, ValueError, Image.DecompressionBombError) as e:
+        logger.error("背景画像のデコードに失敗: error=%s", e)
+        raise BackgroundImageError(f"背景画像の読み込みに失敗しました: {e}") from e
+    return image.resize((width, height))
 
 
 def _apply_gradient_to_layer(layer: Image.Image, gradient_from: str, gradient_to: str) -> Image.Image:
@@ -542,31 +641,10 @@ def generate_image(
         if cached is not None:
             image = cached
         else:
-            try:
-                validate_background_image_url(background_image_url)
-                response = requests.get(
-                    background_image_url,
-                    timeout=BACKGROUND_IMAGE_TIMEOUT,
-                )
-                response.raise_for_status()
-                content_length = response.headers.get("Content-Length")
-                if content_length and int(content_length) > MAX_BACKGROUND_IMAGE_SIZE:
-                    raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
-                data = b""
-                for chunk in response.iter_content(chunk_size=8192):
-                    data += chunk
-                    if len(data) > MAX_BACKGROUND_IMAGE_SIZE:
-                        raise BackgroundImageError("背景画像のサイズが大きすぎます（最大10 MB）")
-                _set_cached_background_image(background_image_url, data)
-                image = Image.open(BytesIO(data)).convert(mode)
-                image = image.resize((width, height))
-            except ValidationError:
-                raise
-            except BackgroundImageError:
-                raise
-            except (OSError, requests.exceptions.RequestException) as e:
-                logger.error("背景画像の取得に失敗: url=%s, error=%s", background_image_url, e)
-                raise BackgroundImageError(f"背景画像の読み込みに失敗しました: {e}") from e
+            data = _fetch_background_image(background_image_url)
+            # Only cache bytes after they have been decoded successfully.
+            image = _decode_background_image(data, mode, width, height)
+            _set_cached_background_image(background_image_url, data)
     else:
         if mode == "RGBA" and color == "transparent":
             color = (0, 0, 0, 0)
