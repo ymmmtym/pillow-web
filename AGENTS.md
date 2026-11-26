@@ -10,7 +10,7 @@ This is a small Flask API that generates PNG images with Pillow.
 - `pyproject.toml` defines package metadata, runtime dependencies, Python support, and the Hatchling build backend.
 - `uv.lock`, `.python-version`, and `mise.toml` define the local toolchain. Use `uv` for dependency management.
 - Put new tests under `tests/`, using names such as `tests/test_images.py`.
-- `.agents/skills/` holds agent skills (`<name>/SKILL.md`). Keep this as the only agent-specific location: do not add tool-specific skill directories (`.claude/skills`, `.kiro/skills`, `.github/skills`) or alias files (`CLAUDE.md`). It is read directly by Copilot, Codex, and OpenCode.
+- Agent skills belong in `.agents/skills/` (`<name>/SKILL.md`). Keep this as the only agent-specific location: do not add tool-specific skill directories (`.claude/skills`, `.kiro/skills`, `.github/skills`) or alias files (`CLAUDE.md`). It is read directly by Copilot, Codex, and OpenCode.
 
 ## Build, Test, and Development Commands
 
